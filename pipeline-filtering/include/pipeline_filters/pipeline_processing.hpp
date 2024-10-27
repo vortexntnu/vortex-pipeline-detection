@@ -12,13 +12,6 @@
 namespace vortex::pipeline_processing
 {
 
-/*
-struct FilterOutput {
-    cv::Mat filtered_image;
-    std::optional<int> optimal_threshold;
-    std::optional<double> auto_gamma;
-};
-*/
 
 struct OtsuParams {
     bool gamma_auto_correction;

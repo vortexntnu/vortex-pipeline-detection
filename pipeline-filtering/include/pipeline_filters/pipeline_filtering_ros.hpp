@@ -9,7 +9,7 @@
 #include <rclcpp/qos.hpp>
 #include "pipeline_processing.hpp"
 #include <rclcpp/parameter_event_handler.hpp>
-
+#include <rclcpp_action/rclcpp_action.hpp>
 
 
 namespace vortex::pipeline_processing
