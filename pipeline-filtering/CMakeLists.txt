@@ -18,6 +18,8 @@ find_package(rclcpp_action REQUIRED)
 find_package(OpenCV 4.5.4 REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(vortex_msgs REQUIRED)
 
 include_directories(include)
 
@@ -44,6 +46,7 @@ ament_target_dependencies(${LIB_NAME} PUBLIC
   rclcpp_action
   cv_bridge
   sensor_msgs
+  vortex_msgs
 )
 
 rclcpp_components_register_node(

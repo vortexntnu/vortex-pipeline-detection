@@ -2,6 +2,7 @@
 #include <rclcpp_components/register_node_macro.hpp>
 
 using std::placeholders::_1;
+using std::placeholders::_2;
 
 namespace vortex::pipeline_processing {
 
@@ -23,6 +24,14 @@ PipelineFilteringNode::PipelineFilteringNode(const rclcpp::NodeOptions & options
     set_filter_params();
 
     initialize_parameter_handler();
+
+    action_server_ = rclcpp_action::create_server<vortex_msgs::action::UpdateThreshold>(
+        this,
+        "update_threshold",
+        std::bind(&PipelineFilteringNode::handleGoal, this, _1, _2),
+        std::bind(&PipelineFilteringNode::handleCancel, this, _1),
+        std::bind(&PipelineFilteringNode::handleAccepted, this, _1)
+    );
 
     image_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/filtered_image", qos_sensor_data);
     optimal_threshold_publisher_ = this->create_publisher<std_msgs::msg::Int32>("/optimal_threshold", 10);
