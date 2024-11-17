@@ -1,0 +1,6 @@
+/**:
+  ros__parameters:
+    image_sub_topic: "/filtered_image"
+    image_visualization_pub_topic: "/line_fitting/visualization"
+    pose_array_pub_topic: "/line/pose_array"
+    publish_visualization: true

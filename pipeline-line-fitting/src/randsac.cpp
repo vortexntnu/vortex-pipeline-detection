@@ -1,5 +1,5 @@
 
-#include <ros_linefitting/randsac.h>
+#include <pipeline_line_fitting/randsac.hpp>
 
 using namespace std;
 

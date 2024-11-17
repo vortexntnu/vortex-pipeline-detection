@@ -1,6 +1,6 @@
 #include <armadillo>
 #include <iostream>
-#include "randsac.h"
+#include <pipeline_line_fitting/randsac.hpp>
 
 //using namespace cv;
 using namespace std;
@@ -15,6 +15,11 @@ class LinedetectorPipe{
     float finalScorethresh;
     float minTurnAngle;
     int size;
+    double original_width;  // Member variable for original image width
+    double original_height; // Member variable for original image height
+    double scale_x;         // Scaling factor for x-axis
+    double scale_y;         // Scaling factor for y-axis
+
     RANDSAC randsac;
     cv::Mat processedImg;
 
