@@ -16,7 +16,7 @@ namespace vortex::pipeline_processing
 {
 class PipelineFilteringNode : public rclcpp::Node{
 
-using GoalHandleUpdateThreshold = rclcpp_action::ServerGoalHandle<vortex_msgs::action::UpdateThreshold>;
+    using GoalHandleUpdateThreshold = rclcpp_action::ServerGoalHandle<vortex_msgs::action::UpdateThreshold>;
 
 public:
     explicit PipelineFilteringNode(const rclcpp::NodeOptions & options);
@@ -45,6 +45,8 @@ private:
 
     rclcpp_action::CancelResponse handleCancel(
         const std::shared_ptr<GoalHandleUpdateThreshold> goal_handle);
+    
+    
     void handleAccepted(const std::shared_ptr<GoalHandleUpdateThreshold> goal_handle);
 
     /**

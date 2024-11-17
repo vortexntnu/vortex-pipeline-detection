@@ -15,6 +15,9 @@ PipelineFilteringNode::PipelineFilteringNode(const rclcpp::NodeOptions & options
     this->declare_parameter<bool>("filter_params.otsu.gamma_auto_correction", true);
     this->declare_parameter<double>("filter_params.otsu.gamma_auto_correction_weight", 1.0);
     this->declare_parameter<bool>("filter_params.otsu.otsu_segmentation", true);
+    this->declare_parameter<double>("filter_params.otsu.gsc_weight_r", 0.5);
+    this->declare_parameter<double>("filter_params.otsu.gsc_weight_g", 0.5);
+    this->declare_parameter<double>("filter_params.otsu.gsc_weight_b", 0.0);
 
     // Set up the QoS profile for the image subscriber
     rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
@@ -38,6 +41,41 @@ PipelineFilteringNode::PipelineFilteringNode(const rclcpp::NodeOptions & options
     auto_gamma_publisher_ = this->create_publisher<std_msgs::msg::Float32>("/auto_gamma", 10.0);
 }
 
+rclcpp_action::GoalResponse PipelineFilteringNode::handleGoal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const vortex_msgs::action::UpdateThreshold::Goal> goal)
+  {
+    RCLCPP_INFO(this->get_logger(), "Received request to update threshold.");
+    (void)uuid;
+    (void)goal;
+    if (is_executing_action_) {
+        RCLCPP_WARN(this->get_logger(), "Already executing an action, rejecting new goal.");
+        return rclcpp_action::GoalResponse::REJECT;
+    }
+    is_executing_action_ = true;
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
+
+rclcpp_action::CancelResponse PipelineFilteringNode::handleCancel(
+    const std::shared_ptr<GoalHandleUpdateThreshold> goal_handle)
+{
+    RCLCPP_INFO(this->get_logger(), "Received request to cancel goal shutting down subscriber.");
+    (void)goal_handle;
+    image_sub_.reset();
+    image_topic_ = "";
+    is_executing_action_ = false;
+    active_goal_handle_.reset();
+    return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void PipelineFilteringNode::handleAccepted(const std::shared_ptr<GoalHandleUpdateThreshold> goal_handle)
+{
+    RCLCPP_INFO(this->get_logger(), "Goal accepted. Setting up subscriber.");
+    //subscribeToImageTopic();
+    is_executing_action_ = true;
+    active_goal_handle_ = goal_handle;
+}
+
 void PipelineFilteringNode::set_filter_params(){
     FilterParams params;
     std::string filter = this->get_parameter("filter_params.filter_type").as_string();
@@ -50,6 +88,9 @@ void PipelineFilteringNode::set_filter_params(){
     params.otsu.gamma_auto_correction = this->get_parameter("filter_params.otsu.gamma_auto_correction").as_bool();
     params.otsu.gamma_auto_correction_weight = this->get_parameter("filter_params.otsu.gamma_auto_correction_weight").as_double();
     params.otsu.otsu_segmentation = this->get_parameter("filter_params.otsu.otsu_segmentation").as_bool();
+    params.otsu.gsc_weight_r = this->get_parameter("filter_params.otsu.gsc_weight_r").as_double();
+    params.otsu.gsc_weight_g = this->get_parameter("filter_params.otsu.gsc_weight_g").as_double();
+    params.otsu.gsc_weight_b = this->get_parameter("filter_params.otsu.gsc_weight_b").as_double();
     filter_params_ = params;
     RCLCPP_INFO(this->get_logger(), "Filter parameters updated.");
 }

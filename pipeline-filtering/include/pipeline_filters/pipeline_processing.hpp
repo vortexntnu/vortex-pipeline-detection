@@ -17,6 +17,9 @@ struct OtsuParams {
     bool gamma_auto_correction;
     double gamma_auto_correction_weight;
     bool otsu_segmentation;
+    double gsc_weight_r;
+    double gsc_weight_g;
+    double gsc_weight_b;
 };
 
 struct FilterParams {
