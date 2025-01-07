@@ -17,6 +17,7 @@ class LinedetectorPipe{
     int size;
     RANDSAC randsac;
     cv::Mat processedImg;
+    cv::Mat orgImg;
 
     //quick summary of the pipeline
     void _preprocess(cv::Mat &img, bool dist=true);
@@ -29,16 +30,16 @@ class LinedetectorPipe{
         ~LinedetectorPipe();
         //call operator is the entry point for the pipeline
         vector<Line> operator()(const cv::Mat &img, const int maxLines);
-        void drawResults(const cv::Mat &img, const vector<Line> &lines, string saveDest="lines.png");
+        cv::Mat drawResults(const cv::Mat &img, const vector<Line> &lines, string saveDest="lines.png");
 
         LinedetectorPipe(
             int n = 5, 
-            int k = 300, 
-            float t = 50.0, 
+            int k = 120, 
+            float t = 20.0, 
             float fracOfPoints = 0.001, 
-            float removeT = 600.0, 
-            float finalScorethresh = 5.0, 
-            float minTurnAngle = 0.7, 
+            float removeT = 1000.0, 
+            float finalScorethresh = 45.0, 
+            float minTurnAngle = 1.2, 
             int size = 200) 
             : n(n), k(k), t(t), fracOfPoints(fracOfPoints), removeT(removeT), finalScorethresh(finalScorethresh), 
             minTurnAngle(minTurnAngle), size(size) {

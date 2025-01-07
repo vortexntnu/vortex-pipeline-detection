@@ -5,18 +5,72 @@
 
 using namespace std;
 
+void normalizeImage(cv::Mat &img) {
+    // Normalize the image to the range [0, 255]
+    //cv::normalize(img, img, 0, 255, cv::NORM_MINMAX);
+}
+
+/*
 void LinedetectorPipe::_preprocess(cv::Mat &img, bool dist){
+    
     
     cv::resize(img, img, cv::Size(size, size));
 
-    if (dist){cv::distanceTransform(img, img, cv::DIST_L2, 5);}
+    if (dist){
+        cv::Mat dist_img;
+        cv::distanceTransform(img, dist_img, cv::DIST_L2, 5);
+        cv::normalize(dist_img, dist_img, 0, 1.0, cv::NORM_MINMAX);
 
-    // Apply morphological opening
-    cv::Mat kernel = cv::Mat::ones(1, 1, CV_8U);
-    cv::morphologyEx(img, img, cv::MORPH_OPEN, kernel);
+        // Threshold the distance transform image to get the skeleton
+        cv::threshold(dist_img, img, 0.4, 1.0, cv::THRESH_BINARY);
+    }
+
+
+    //normalizeImage(img);
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::morphologyEx(img, img, cv::MORPH_GRADIENT, kernel);
+
     img.convertTo(img, CV_8U);
 }
+*/
 
+void LinedetectorPipe::_preprocess(cv::Mat &img, bool dist){
+    // Resize the image
+    cv::resize(img, img, cv::Size(size, size));
+
+    // Apply distance transform to get the center lines
+    if (dist){
+        cv::Mat dist_img;
+        cv::distanceTransform(img, dist_img, cv::DIST_L2, 5);
+        cv::normalize(dist_img, dist_img, 0, 1.0, cv::NORM_MINMAX);
+
+        // Threshold the distance transform image to get the skeleton
+        cv::threshold(dist_img, img, 0.4, 1.0, cv::THRESH_BINARY);
+    }
+
+    // Convert the image to 8-bit
+    img.convertTo(img, CV_8U, 255);
+
+    // Apply morphological operations to clean up the result
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::morphologyEx(img, img, cv::MORPH_CLOSE, kernel);
+
+    // Skeletonize the image to get the center lines
+    cv::Mat skel(img.size(), CV_8UC1, cv::Scalar(0.1));
+    cv::Mat temp;
+    bool done;
+    do {
+        cv::morphologyEx(img, temp, cv::MORPH_OPEN, kernel);
+        cv::bitwise_not(temp, temp);
+        cv::bitwise_and(img, temp, temp);
+        cv::bitwise_or(skel, temp, skel);
+        cv::erode(img, img, kernel);
+
+        done = (cv::countNonZero(img) == 0);
+    } while (!done);
+
+    img = skel;
+}
 LinedetectorPipe::~LinedetectorPipe(){
     // Destructor
 }
@@ -39,15 +93,13 @@ int LinedetectorPipe::detectSingleLine(const mat &points, const mat &values, con
     // Fit the RANDSAC model
     randsac.fit(X, y, values, lines);
 
-    // Print the best value
-    cout << "Found line " << i+1 << " with score: " << randsac.bestScore << endl;
-
-
     // Check the best_fit and bestValue conditions
     // if params is empty, not solution was found
     if (randsac.bestFit.params.size() == 0 || randsac.bestScore < finalScorethresh) {
         return 1;
     }
+    cout << "Found line " << i+1 << " with score: " << randsac.bestScore << endl;
+
     return 0;
 
 }
@@ -67,7 +119,7 @@ void LinedetectorPipe::_getEndPoints(Line &line, const mat &points){
         if (y < 0 || y >= size){
             continue;
         }
-        int pixel = processedImg.at<uchar>(y, x);
+        int pixel = orgImg.at<uchar>(y, x);
         if (pixel > 0){
 
             if (min_x == -1){
@@ -79,8 +131,6 @@ void LinedetectorPipe::_getEndPoints(Line &line, const mat &points){
                 max_x_yval = y;
             }
         }
-
-
     }
 
     line.start = cv::Point(min_x, min_x_yval);
@@ -88,7 +138,9 @@ void LinedetectorPipe::_getEndPoints(Line &line, const mat &points){
 
 }
 
-vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines=2){
+vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines=3){
+    orgImg = img.clone();
+    cv::resize(orgImg, orgImg, cv::Size(size, size));
     processedImg = img.clone();
     _preprocess(processedImg);
 
@@ -138,21 +190,26 @@ vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines
         points = newPoints;
         values = newValues;
 
+
         lines.push_back(line);
     }
 
     return lines;
 }
 
-void LinedetectorPipe::drawResults(const cv::Mat &img, const vector<Line> &lines, string saveDest){
+cv::Mat LinedetectorPipe::drawResults(const cv::Mat &img, const vector<Line> &lines, string saveDest){
     // Draw the lines
     cv::Mat img2 = img.clone();
-    cv::cvtColor(img, img2, cv::COLOR_GRAY2BGR);
+
+    _preprocess(img2);
     cv::resize(img2, img2, cv::Size(size, size));
+    img2.convertTo(img2, CV_8U);
+    
+    cv::cvtColor(img2, img2, cv::COLOR_GRAY2BGR);
 
 
     for (int i = 0; i < lines.size(); i+=1){
         cv::line(img2, lines[i].start, lines[i].end, cv::Scalar(255, 0, 255), 2);
     }
-    cv::imwrite(saveDest, img2);
+    return img2;
 }

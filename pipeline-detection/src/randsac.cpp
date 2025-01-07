@@ -11,6 +11,7 @@ mat squareErrorLoss(const mat &y_true, const mat &y_pred){
 }
 
 double value(const mat &inliersVal){
+    return inliersVal.size();
     return mean(mean(inliersVal));
 }
 

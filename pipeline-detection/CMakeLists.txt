@@ -4,8 +4,10 @@ project(pipeline-detection)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Armadillo REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 include_directories(include)
 include_directories(${OpenCV_INCLUDE_DIRS} ${ARMADILLO_INCLUDE_DIRS})
@@ -22,7 +24,7 @@ target_link_libraries(LinedetectorPipe randsac ${OpenCV_LIBS} ${ARMADILLO_LIBRAR
 # Define an executable that uses the linefitting library
 add_executable(linefitting src/linefitting.cpp)
 target_link_libraries(linefitting LinedetectorPipe)
-ament_target_dependencies(linefitting rclcpp geometry_msgs)
+ament_target_dependencies(linefitting rclcpp geometry_msgs sensor_msgs cv_bridge)
 
 #another executable for a debug reciver
 add_executable(debugreciver src/debugreciver.cpp)
