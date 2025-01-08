@@ -25,10 +25,16 @@ LinearRegressor::~LinearRegressor(){
     params.clear();
 }
 
-void LinearRegressor::fit(const mat &X, const mat &y){
-    //make sure to account for matrix not invertible error
+void LinearRegressor::fit(const mat &X, const mat &y, double lambda){
+    // Add a column of ones to X
     mat X_ = join_horiz(ones(X.n_rows, 1), X);
-    params = conv_to<vector<double>>::from(solve(X_, y));
+    
+    // Compute the regularization term
+    mat I = eye<mat>(X_.n_cols, X_.n_cols);
+    I(0, 0) = 0; // Do not regularize the bias term
+    
+    // Solve the modified normal equation
+    params = conv_to<vector<double>>::from(solve(X_.t() * X_ + lambda * I, X_.t() * y));
 }
 
 mat LinearRegressor::predict(const mat &X){

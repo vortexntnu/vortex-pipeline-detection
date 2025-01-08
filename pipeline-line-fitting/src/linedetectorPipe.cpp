@@ -83,7 +83,7 @@ int LinedetectorPipe::detectSingleLine(const mat &points, const mat &values, con
     return 0;
 }
 
-void LinedetectorPipe::_getEndPoints(Line &line, const mat &points) {
+void LinedetectorPipe::_getEndPoints(Line &line) {
     int min_x = -1;
     int max_x = -1;
     int min_x_yval;
@@ -95,7 +95,7 @@ void LinedetectorPipe::_getEndPoints(Line &line, const mat &points) {
         if (y < 0 || y >= size) {
             continue;
         }
-        int pixel = processedImg.at<uchar>(y, x);
+        int pixel = orgImg.at<uchar>(y, x);
         if (pixel > 0) {
             if (min_x == -1) {
                 min_x = x;
@@ -108,14 +108,17 @@ void LinedetectorPipe::_getEndPoints(Line &line, const mat &points) {
         }
     }
 
-    // Apply scaling back to original coordinates
-    line.start = cv::Point(static_cast<int>(min_x / scale_x), static_cast<int>(min_x_yval / scale_y));
-    line.end = cv::Point(static_cast<int>(max_x / scale_x), static_cast<int>(max_x_yval / scale_y));
+    // Apply scaling back to original coordinates - nooooooooooooooooooooooooooooooooooo you dont
+
+    /*line.start = cv::Point(static_cast<int>(min_x / scale_x), static_cast<int>(min_x_yval / scale_y));
+    line.end = cv::Point(static_cast<int>(max_x / scale_x), static_cast<int>(max_x_yval / scale_y));*/
+    line.start = cv::Point(min_x, min_x_yval);
+    line.end = cv::Point(max_x, max_x_yval);
 }
 
 vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines=3){
-    //orgImg = img.clone();
-    //cv::resize(orgImg, orgImg, cv::Size(size, size));
+    orgImg = img.clone();
+    cv::resize(orgImg, orgImg, cv::Size(size, size));
     processedImg = img.clone();
     _preprocess(processedImg);
 
@@ -147,7 +150,7 @@ vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines
         }
 
         Line line{randsac.bestFit.params[1], randsac.bestFit.params[0], randsac.bestScore, {0, 0}, {0, 0}};
-        _getEndPoints(line, points);
+        _getEndPoints(line);
 
         // Remove points for next iteration
         mat newPoints;
@@ -172,7 +175,7 @@ cv::Mat LinedetectorPipe::drawResults(const cv::Mat &img, const vector<Line> &li
     // Draw the lines
     cv::Mat img2 = img.clone();
 
-    //_preprocess(img2);
+    _preprocess(img2);
     cv::resize(img2, img2, cv::Size(size, size));
     img2.convertTo(img2, CV_8U);
     

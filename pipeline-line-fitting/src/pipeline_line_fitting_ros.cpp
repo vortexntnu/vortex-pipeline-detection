@@ -68,15 +68,17 @@ void PipelineLineFittingNode::image_callback(const sensor_msgs::msg::Image::Shar
     }
 }
 
-cv::Mat PipelineLineFittingNode::draw_lines(const cv::Mat &image, const vector<Line> &lines)
+cv::Mat PipelineLineFittingNode::draw_lines(cv::Mat &image, const vector<Line> &lines)
 {
     cv::Mat img_color;
+    cv::resize(image, image, cv::Size(200, 200));
+    //pipeline._preprocess(image);
     cv::cvtColor(image, img_color, cv::COLOR_GRAY2BGR);
 
     for (const auto& line : lines) {
         cv::Point start(line.start.x, line.start.y);
         cv::Point end(line.end.x, line.end.y);
-        cv::line(img_color, start, end, cv::Scalar(0, 0, 255), 2);
+        cv::line(img_color, start, end, cv::Scalar(255, 0, 255), 2);
     }
 
     return img_color;

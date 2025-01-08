@@ -23,7 +23,7 @@ struct LinearRegressor{
     vector<double> params;
     LinearRegressor();
     ~LinearRegressor();
-    void fit(const mat &X, const mat &y);
+    void fit(const mat &X, const mat &y, double lambda = 11);
     mat predict(const mat &X);
 };
 

@@ -15,6 +15,7 @@ class LinedetectorPipe{
     float finalScorethresh;
     float minTurnAngle;
     int size;
+    cv::Mat orgImg;        // Original image
     double original_width;  // Member variable for original image width
     double original_height; // Member variable for original image height
     double scale_x;         // Scaling factor for x-axis
@@ -24,10 +25,11 @@ class LinedetectorPipe{
     cv::Mat processedImg;
 
     //quick summary of the pipeline
-    void _preprocess(cv::Mat &img, bool dist=true);
+    public:
+        void _preprocess(cv::Mat &img, bool dist=true);
     int detectSingleLine(const mat &points, const mat &values, const vector<Line> &lines, const int i);
     void _postprocess();
-    void _getEndPoints(Line &line, const mat &points);
+    void _getEndPoints(Line &line);
 
     public:
 
@@ -38,12 +40,12 @@ class LinedetectorPipe{
 
         LinedetectorPipe(
             int n = 5, 
-            int k = 300, 
-            float t = 50.0, 
+            int k = 500, 
+            float t = 20.0, 
             float fracOfPoints = 0.001, 
-            float removeT = 600.0, 
-            float finalScorethresh = 5.0, 
-            float minTurnAngle = 0.7, 
+            float removeT = 1000.0, 
+            float finalScorethresh = 45.0, 
+            float minTurnAngle = 1.2, 
             int size = 200) 
             : n(n), k(k), t(t), fracOfPoints(fracOfPoints), removeT(removeT), finalScorethresh(finalScorethresh), 
             minTurnAngle(minTurnAngle), size(size) {

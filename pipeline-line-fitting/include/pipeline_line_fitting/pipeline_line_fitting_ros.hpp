@@ -27,7 +27,7 @@ private:
 
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
 
-    cv::Mat draw_lines(const cv::Mat &image, const vector<Line> &lines);
+    cv::Mat draw_lines(cv::Mat &image, const vector<Line> &lines);
 };
   
 
