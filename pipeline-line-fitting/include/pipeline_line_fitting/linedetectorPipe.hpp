@@ -1,6 +1,6 @@
 #include <armadillo>
 #include <iostream>
-#include "randsac.h"
+#include <pipeline_line_fitting/randsac.hpp>
 
 //using namespace cv;
 using namespace std;
@@ -15,9 +15,13 @@ class LinedetectorPipe{
     float finalScorethresh;
     float minTurnAngle;
     int size;
+    double original_width;  // Member variable for original image width
+    double original_height; // Member variable for original image height
+    double scale_x;         // Scaling factor for x-axis
+    double scale_y;         // Scaling factor for y-axis
+
     RANDSAC randsac;
     cv::Mat processedImg;
-    cv::Mat orgImg;
 
     //quick summary of the pipeline
     void _preprocess(cv::Mat &img, bool dist=true);
@@ -30,16 +34,16 @@ class LinedetectorPipe{
         ~LinedetectorPipe();
         //call operator is the entry point for the pipeline
         vector<Line> operator()(const cv::Mat &img, const int maxLines);
-        cv::Mat drawResults(const cv::Mat &img, const vector<Line> &lines, string saveDest="lines.png");
+        cv::Mat drawResults(const cv::Mat &img, const vector<Line> &lines);
 
         LinedetectorPipe(
             int n = 5, 
-            int k = 500, 
-            float t = 20.0, 
+            int k = 300, 
+            float t = 50.0, 
             float fracOfPoints = 0.001, 
-            float removeT = 1000.0, 
-            float finalScorethresh = 45.0, 
-            float minTurnAngle = 1.2, 
+            float removeT = 600.0, 
+            float finalScorethresh = 5.0, 
+            float minTurnAngle = 0.7, 
             int size = 200) 
             : n(n), k(k), t(t), fracOfPoints(fracOfPoints), removeT(removeT), finalScorethresh(finalScorethresh), 
             minTurnAngle(minTurnAngle), size(size) {

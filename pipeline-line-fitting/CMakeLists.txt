@@ -1,42 +1,72 @@
 cmake_minimum_required(VERSION 3.5)
-project(pipeline-detection)
+project(pipeline_line_fitting)
 
+# Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Armadillo REQUIRED)
 find_package(cv_bridge REQUIRED)
 
+# Include directories
 include_directories(include)
 include_directories(${OpenCV_INCLUDE_DIRS} ${ARMADILLO_INCLUDE_DIRS})
 
-# Define the randsac library
-add_library(randsac src/randsac.cpp)
-ament_target_dependencies(randsac rclcpp)
+set(LIB_NAME "${PROJECT_NAME}_component")
 
+add_library(${LIB_NAME} SHARED
+  src/pipeline_line_fitting_ros.cpp
+  src/randsac.cpp
+  src/linedetectorPipe.cpp
+)
 
-# Define the LinedetectorPipe library and link it with randsac, OpenCV, and Armadillo
-add_library(LinedetectorPipe src/linedetectorPipe.cpp)
-target_link_libraries(LinedetectorPipe randsac ${OpenCV_LIBS} ${ARMADILLO_LIBRARIES})
+target_link_libraries(${LIB_NAME} PUBLIC
+  ${OpenCV_LIBS}
+  ${ARMADILLO_LIBRARIES}
+)
 
-# Define an executable that uses the linefitting library
-add_executable(linefitting src/linefitting.cpp)
-target_link_libraries(linefitting LinedetectorPipe)
-ament_target_dependencies(linefitting rclcpp geometry_msgs sensor_msgs cv_bridge)
+target_include_directories(${LIB_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${OpenCV_INCLUDE_DIRS}
+  ${ARMADILLO_INCLUDE_DIRS}
+)
 
-#another executable for a debug reciver
-add_executable(debugreciver src/debugreciver.cpp)
-ament_target_dependencies(debugreciver rclcpp geometry_msgs)
+ament_target_dependencies(${LIB_NAME} PUBLIC
+  rclcpp
+  rclcpp_components
+  sensor_msgs
+  geometry_msgs
+  cv_bridge
+)
 
-install(TARGETS
-  randsac
-  LinedetectorPipe
-  linefitting
-  debugreciver
-  RUNTIME DESTINATION lib/${PROJECT_NAME}
-  LIBRARY DESTINATION lib/${PROJECT_NAME}
-  ARCHIVE DESTINATION lib/${PROJECT_NAME})
+rclcpp_components_register_node(
+    ${LIB_NAME}
+    PLUGIN "PipelineLineFittingNode"
+    EXECUTABLE ${PROJECT_NAME}_node
+)
+
+ament_export_targets(export_${LIB_NAME})
+
+install(TARGETS ${LIB_NAME}
+  EXPORT export_${LIB_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+install(DIRECTORY
+  launch
+  params
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 ament_package()

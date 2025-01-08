@@ -47,9 +47,11 @@ void PipelineFilteringNode::set_filter_params(){
 
 void PipelineFilteringNode::check_and_subscribe_to_image_topic() {
     std::string image_topic = this->get_parameter("sub_topic").as_string();
+    rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
+    auto qos_sensor_data = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 1), qos_profile);
     if (image_topic_ != image_topic) {
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            image_topic, 10, std::bind(&PipelineFilteringNode::image_callback, this, _1));
+            image_topic, qos_sensor_data, std::bind(&PipelineFilteringNode::image_callback, this, _1));
         image_topic_ = image_topic;
         RCLCPP_INFO(this->get_logger(), "Subscribed to image topic: %s", image_topic.c_str());
     }
