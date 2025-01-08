@@ -34,7 +34,7 @@ class LinedetectorPipe{
 
         LinedetectorPipe(
             int n = 5, 
-            int k = 120, 
+            int k = 500, 
             float t = 20.0, 
             float fracOfPoints = 0.001, 
             float removeT = 1000.0, 

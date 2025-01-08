@@ -201,7 +201,7 @@ cv::Mat LinedetectorPipe::drawResults(const cv::Mat &img, const vector<Line> &li
     // Draw the lines
     cv::Mat img2 = img.clone();
 
-    _preprocess(img2);
+    //_preprocess(img2);
     cv::resize(img2, img2, cv::Size(size, size));
     img2.convertTo(img2, CV_8U);
     
