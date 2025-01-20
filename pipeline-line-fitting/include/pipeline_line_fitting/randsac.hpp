@@ -9,6 +9,7 @@ struct Line{
     double slope;
     double intercept;
     double score;
+    bool vertical;
     cv::Point start;
     cv::Point end;
 };
@@ -21,9 +22,10 @@ using MetricFunction = double(*)(const mat&);
 
 struct LinearRegressor{
     vector<double> params;
+    bool vertical;
     LinearRegressor();
     ~LinearRegressor();
-    void fit(const mat &X, const mat &y, double lambda = 11);
+    void fit(const mat &X, const mat &y);
     mat predict(const mat &X);
 };
 

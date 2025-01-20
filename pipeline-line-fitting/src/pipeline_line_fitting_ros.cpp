@@ -75,11 +75,14 @@ cv::Mat PipelineLineFittingNode::draw_lines(cv::Mat &image, const vector<Line> &
     //pipeline._preprocess(image);
     cv::cvtColor(image, img_color, cv::COLOR_GRAY2BGR);
 
+    cv::Mat img_with_lines = img_color.clone();
+
     for (const auto& line : lines) {
         cv::Point start(line.start.x, line.start.y);
         cv::Point end(line.end.x, line.end.y);
         cv::line(img_color, start, end, cv::Scalar(255, 0, 255), 2);
     }
+    cv::addWeighted(img_with_lines, 0.5, img_color, 0.5, 0, img_color);
 
     return img_color;
 }

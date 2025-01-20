@@ -29,7 +29,7 @@ class LinedetectorPipe{
         void _preprocess(cv::Mat &img, bool dist=true);
     int detectSingleLine(const mat &points, const mat &values, const vector<Line> &lines, const int i);
     void _postprocess();
-    void _getEndPoints(Line &line);
+    void _getEndPoints(Line &line, bool swap=false);
 
     public:
 
@@ -44,7 +44,7 @@ class LinedetectorPipe{
             float t = 20.0, 
             float fracOfPoints = 0.001, 
             float removeT = 1000.0, 
-            float finalScorethresh = 45.0, 
+            float finalScorethresh = 35.0, 
             float minTurnAngle = 1.2, 
             int size = 200) 
             : n(n), k(k), t(t), fracOfPoints(fracOfPoints), removeT(removeT), finalScorethresh(finalScorethresh), 

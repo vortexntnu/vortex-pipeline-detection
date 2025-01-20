@@ -1,6 +1,7 @@
 pipeline_filtering_node:
   ros__parameters:
-    sub_topic: "/gripper_camera/image_raw" #"/cam_down/image_color"
+    sub_topic: "/cam_down/image_color" 
+#    sub_topic: "/gripper_camera/image_raw"
     pub_topic: "/filtered_image"
     filter_params:
       filter_type: "otsu"
