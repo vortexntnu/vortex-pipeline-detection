@@ -132,7 +132,7 @@ void LinedetectorPipe::_getEndPoints(Line &line, bool swap) {
     int min_x_yval;
     int max_x_yval;
     cout << line.slope << " " << line.intercept << endl;
-    for (int x = 0; x < size; ++x) {
+    for (double x = 0; x < size; x += 0.05) {
         int y = line.slope * x + line.intercept;
 
         if (y < 0 || y >= size) {
@@ -154,27 +154,6 @@ void LinedetectorPipe::_getEndPoints(Line &line, bool swap) {
                 max_x = x;
                 max_x_yval = y;
             }
-        }
-        else if (min_x != -1 && false){
-            //line has started, but ended. //thus, we find the end point more accuratly and break
-
-            //find the end point more accurately
-            int y1 = line.slope * (x-1) + line.intercept;
-            int y2 = line.slope * (x) + line.intercept;
-            for (int y = y1; y < y2; y++){
-                if (swap) {
-                    pixel = orgImg.at<uchar>(x, y);
-                }
-                else{
-                    pixel = orgImg.at<uchar>(y, x);
-                }
-                if (pixel > 0) {
-                    max_x = x;
-                    max_x_yval = y;
-                    break;
-                }
-            }
-            break;
         }
     }
 
