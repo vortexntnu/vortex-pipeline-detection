@@ -69,7 +69,6 @@ class RANDSAC{
                 model: class implementing `fit` and `predict`
                 loss: function of `y_true` and `y_pred` that returns a vector, this is the basis for the threshold
                 metric: function of inliers that returns a scalar, larger is better
-                turnAngle: min angle-difference between lines. If you want more than two lines, this should be 0
                 */
                _reset();
             }

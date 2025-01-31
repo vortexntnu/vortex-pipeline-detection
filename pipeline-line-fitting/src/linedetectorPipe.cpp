@@ -63,8 +63,9 @@ void removeBorderArtifacts(cv::Mat& img) {
 
 void LinedetectorPipe::_preprocess(cv::Mat& img, bool dist) {
     // Calculate scaling factors
-    double scale_x = static_cast<double>(size) / img.cols;
-    double scale_y = static_cast<double>(size) / img.rows;
+    scaleX = static_cast<double>(size) / img.cols;
+    scaleY = static_cast<double>(size) / img.rows;
+
 
     cv::resize(img, img, cv::Size(size, size));
 
@@ -131,7 +132,6 @@ void LinedetectorPipe::_getEndPoints(Line &line, bool swap) {
     int max_x = -1;
     int min_x_yval;
     int max_x_yval;
-    cout << line.slope << " " << line.intercept << endl;
     for (double x = 0; x < size; x += 0.05) {
         int y = line.slope * x + line.intercept;
 
@@ -157,14 +157,14 @@ void LinedetectorPipe::_getEndPoints(Line &line, bool swap) {
         }
     }
 
-
-    // Apply scaling back to original coordinates - nooooooooooooooooooooooooooooooooooo you dont
-    //not yet, anyway
-
-    /*line.start = cv::Point(static_cast<int>(min_x / scale_x), static_cast<int>(min_x_yval / scale_y));
-    line.end = cv::Point(static_cast<int>(max_x / scale_x), static_cast<int>(max_x_yval / scale_y));*/
-    line.start = cv::Point(min_x, min_x_yval);
-    line.end = cv::Point(max_x, max_x_yval);
+    if (swap){
+        line.start = cv::Point(static_cast<int>(min_x_yval / scaleX), static_cast<int>(min_x / scaleY));
+        line.end = cv::Point(static_cast<int>(max_x_yval / scaleX), static_cast<int>(max_x / scaleY));
+    }
+    else{
+        line.start = cv::Point(static_cast<int>(min_x / scaleX), static_cast<int>(min_x_yval / scaleY));
+        line.end = cv::Point(static_cast<int>(max_x / scaleX), static_cast<int>(max_x_yval / scaleY));
+    }
 }
 
 vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines=3){
@@ -222,8 +222,8 @@ vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines
             //use a rotated image to get end points also
             _getEndPoints(line, true);
             //roate back end points
-            line.end = cv::Point(line.end.y, line.end.x);
-            line.start = cv::Point(line.start.y, line.start.x);
+            //line.end = cv::Point(line.end.y, line.end.x);
+            //line.start = cv::Point(line.start.y, line.start.x);
             cout << "Line " << i+1 << " rotated ---------------------------" << endl;
 
         }

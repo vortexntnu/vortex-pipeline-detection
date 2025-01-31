@@ -18,8 +18,8 @@ class LinedetectorPipe{
     cv::Mat orgImg;        // Original image
     double original_width;  // Member variable for original image width
     double original_height; // Member variable for original image height
-    double scale_x;         // Scaling factor for x-axis
-    double scale_y;         // Scaling factor for y-axis
+    double scaleX;         // Scaling factor for x-axis
+    double scaleY;         // Scaling factor for y-axis
 
     RANDSAC randsac;
     cv::Mat processedImg;
@@ -41,11 +41,11 @@ class LinedetectorPipe{
         LinedetectorPipe(
             int n = 5, 
             int k = 500, 
-            float t = 20.0, 
+            float t = 50.0, 
             float fracOfPoints = 0.001, 
             float removeT = 1000.0, 
-            float finalScorethresh = 35.0, 
-            float minTurnAngle = 1.2, 
+            float finalScorethresh = 65.0, 
+            float minTurnAngle = 1.5, 
             int size = 200) 
             : n(n), k(k), t(t), fracOfPoints(fracOfPoints), removeT(removeT), finalScorethresh(finalScorethresh), 
             minTurnAngle(minTurnAngle), size(size) {
@@ -53,7 +53,7 @@ class LinedetectorPipe{
                 A line detector using RANSAC to find to lines in a bitmask image
                 n: How many random points to choose to start each iteration
                 k: How many iterations to run
-                t: Threshold for points to be considered inliers, for the purpose of scroring
+                t: Threshold for points to be considered inliers, for the purpose of scoring
                 fracOfPoints: minium fraction of points that need to bee inliers for a line to be considered
                 removeT: Threshold for points to be removed between iterations
                 finalScorethresh: required score to be counted as a detected line

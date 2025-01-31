@@ -47,8 +47,6 @@ void LinearRegressor::fit(const mat &X, const mat &y){
 
 mat LinearRegressor::predict(const mat &X){
     if (vertical){
-        /*cout << ones(X.n_rows) * params.at(0) << endl;
-        cout << params.at(0) << endl;*/
         return ones(X.n_rows) * params.at(0); // the vertical line will return x-predections, instead of y-predictions
     }
 
@@ -131,7 +129,7 @@ void RANDSAC::fit (const mat &X, const mat &y, const mat &values, const vector<L
         }
         //if (maybe_model.vertical){cout << "inlier_ids: " << inlier_ids.size() << " " << maybe_model.params.at(0) << endl;}
 
-        if (inlier_ids.size() > 10){//} && legalAlpha(maybe_model.params[1], lines)) {
+        if (inlier_ids.size() > 10 && legalAlpha(maybe_model.params[1], lines)) {
             failed = false;
 
             vector<int> inlier_points = maybe_inliers;
