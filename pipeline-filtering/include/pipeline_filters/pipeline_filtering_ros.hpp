@@ -9,14 +9,10 @@
 #include <rclcpp/qos.hpp>
 #include "pipeline_processing.hpp"
 #include <rclcpp/parameter_event_handler.hpp>
-#include <rclcpp_action/rclcpp_action.hpp>
-#include <vortex_msgs/action/update_threshold.hpp>
 
 namespace vortex::pipeline_processing
 {
 class PipelineFilteringNode : public rclcpp::Node{
-
-    using GoalHandleUpdateThreshold = rclcpp_action::ServerGoalHandle<vortex_msgs::action::UpdateThreshold>;
 
 public:
     explicit PipelineFilteringNode(const rclcpp::NodeOptions & options);
@@ -36,18 +32,6 @@ private:
     rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr optimal_threshold_publisher_;
 
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr auto_gamma_publisher_;
-    
-    rclcpp_action::Server<vortex_msgs::action::UpdateThreshold>::SharedPtr action_server_;
-    
-    rclcpp_action::GoalResponse handleGoal(
-        const rclcpp_action::GoalUUID & uuid,
-        std::shared_ptr<const vortex_msgs::action::UpdateThreshold::Goal> goal);
-
-    rclcpp_action::CancelResponse handleCancel(
-        const std::shared_ptr<GoalHandleUpdateThreshold> goal_handle);
-    
-    
-    void handleAccepted(const std::shared_ptr<GoalHandleUpdateThreshold> goal_handle);
 
     /**
      * @brief Check and subscribe to image if not yet subscribed. Allows for dynaminc reconfiguration of image topic.
@@ -124,9 +108,6 @@ private:
 
     bool confirmed_;
     int confirmed_counter_;
-    bool is_executing_action_ = false;
-    std::shared_ptr<GoalHandleUpdateThreshold> active_goal_handle_;
-
 };
 
 } // namespace vortex::pipeline_processing

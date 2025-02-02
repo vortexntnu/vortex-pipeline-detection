@@ -28,52 +28,9 @@ PipelineFilteringNode::PipelineFilteringNode(const rclcpp::NodeOptions & options
 
     initialize_parameter_handler();
 
-    action_server_ = rclcpp_action::create_server<vortex_msgs::action::UpdateThreshold>(
-        this,
-        "update_threshold",
-        std::bind(&PipelineFilteringNode::handleGoal, this, _1, _2),
-        std::bind(&PipelineFilteringNode::handleCancel, this, _1),
-        std::bind(&PipelineFilteringNode::handleAccepted, this, _1)
-    );
-
     image_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/filtered_image", qos_sensor_data);
     optimal_threshold_publisher_ = this->create_publisher<std_msgs::msg::Int32>("/optimal_threshold", 10);
     auto_gamma_publisher_ = this->create_publisher<std_msgs::msg::Float32>("/auto_gamma", 10.0);
-}
-
-rclcpp_action::GoalResponse PipelineFilteringNode::handleGoal(
-    const rclcpp_action::GoalUUID & uuid,
-    std::shared_ptr<const vortex_msgs::action::UpdateThreshold::Goal> goal)
-  {
-    RCLCPP_INFO(this->get_logger(), "Received request to update threshold.");
-    (void)uuid;
-    (void)goal;
-    if (is_executing_action_) {
-        RCLCPP_WARN(this->get_logger(), "Already executing an action, rejecting new goal.");
-        return rclcpp_action::GoalResponse::REJECT;
-    }
-    is_executing_action_ = true;
-    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-}
-
-rclcpp_action::CancelResponse PipelineFilteringNode::handleCancel(
-    const std::shared_ptr<GoalHandleUpdateThreshold> goal_handle)
-{
-    RCLCPP_INFO(this->get_logger(), "Received request to cancel goal shutting down subscriber.");
-    (void)goal_handle;
-    image_sub_.reset();
-    image_topic_ = "";
-    is_executing_action_ = false;
-    active_goal_handle_.reset();
-    return rclcpp_action::CancelResponse::ACCEPT;
-}
-
-void PipelineFilteringNode::handleAccepted(const std::shared_ptr<GoalHandleUpdateThreshold> goal_handle)
-{
-    RCLCPP_INFO(this->get_logger(), "Goal accepted. Setting up subscriber.");
-    //subscribeToImageTopic();
-    is_executing_action_ = true;
-    active_goal_handle_ = goal_handle;
 }
 
 void PipelineFilteringNode::set_filter_params(){
@@ -165,15 +122,9 @@ void PipelineFilteringNode::image_callback(const sensor_msgs::msg::Image::Shared
 
     apply_filter(filter_, filter_params_, input_image, filtered_image);
 
-//     auto message = cv_bridge::CvImage(msg->header, "bgr8", filtered_image).toImageMsg();
-    
-//     image_pub_->publish(*message);
     // Create a unique pointer for the message
-    // RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Addr of image message: " << msg.get());
     auto message = std::make_unique<sensor_msgs::msg::Image>();
     cv_bridge::CvImage(msg->header, "mono8", filtered_image).toImageMsg(*message);
-
-    // RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Addr of image message filtering: " << message.get());
 
     // Publish the message using a unique pointer
     image_pub_->publish(std::move(message));

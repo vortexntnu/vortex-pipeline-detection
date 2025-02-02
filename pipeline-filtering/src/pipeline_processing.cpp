@@ -58,11 +58,11 @@ double calculateAutoGamma(const cv::Mat& image) {
 }
 
 void customGrayscale(const cv::Mat& original, cv::Mat& filtered, double weightR, double weightG, double weightB) {
-    // Ensure the weights sum to 1
-    double weightSum = weightR + weightG;
+    // Make the sum of weights equal 1
+    double weightSum = weightR + weightG + weightB;
     weightR /= weightSum;
     weightG /= weightSum;
-    //weightB /= weightSum;
+    weightB /= weightSum;
 
     // Create an empty single-channel image
     filtered = cv::Mat::zeros(original.size(), CV_8UC1);
@@ -77,12 +77,19 @@ void customGrayscale(const cv::Mat& original, cv::Mat& filtered, double weightR,
             uchar red = bgr[2];
 
             // Calculate the grayscale value with custom weights
-            uchar gray = static_cast<uchar>(weightB * blue + weightG * green + weightR * red);
+            uchar gray = static_cast<uchar>(weightB*blue + weightG*green + weightR*red);
 
             // Assign to the output image
             filtered.at<uchar>(row, col) = gray;
         }
     }
+}
+
+void customTransformation(const cv::Mat& input, cv::Mat& output, double alpha, double n) {
+    input.convertTo(output, CV_32F, 1.0 / 255.0); // Normalize to [0, 1]
+    cv::pow(output, n, output);                  // Apply power transformation
+    output *= alpha;                             // Scale the brightness
+    output.convertTo(output, CV_8U, 255.0);      // Convert back to [0, 255]
 }
 
 void otsu_segmentation_filter(const FilterParams& params, const cv::Mat &original, cv::Mat &filtered) 
@@ -99,6 +106,13 @@ void otsu_segmentation_filter(const FilterParams& params, const cv::Mat &origina
 
     // Convert to grayscale with custom weights
     customGrayscale(original, filtered, weightR, weightG, weightB);
+
+	cv::Mat output;
+	double alpha = 2.0; // Adjust for brightness normalization
+    double n = 5.0;     // Power for darkening
+    customTransformation(filtered, output, alpha, n);
+
+	filtered = output;
 
 	if(gamma_auto_correction) {
 		double autoGamma = calculateAutoGamma(filtered) * gamma_auto_correction_weight;
