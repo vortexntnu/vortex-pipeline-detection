@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.5)
 project(pipeline_line_fitting)
 
-# Find dependencies
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
@@ -11,7 +14,6 @@ find_package(OpenCV REQUIRED)
 find_package(Armadillo REQUIRED)
 find_package(cv_bridge REQUIRED)
 
-# Include directories
 include_directories(include)
 include_directories(${OpenCV_INCLUDE_DIRS} ${ARMADILLO_INCLUDE_DIRS})
 

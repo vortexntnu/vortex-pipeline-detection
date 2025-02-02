@@ -12,7 +12,7 @@ The package can be run using the following command:
 colcon build --packages-select pipeline_filtering --symlink-install
 ```
 
-Remember so source. Then you can launch the package using the following command:
+Remember to source. Then you can launch the package using the following command:
 ```
 ros2 launch pipeline_filtering pipeline_filtering_launch.py
 ```
