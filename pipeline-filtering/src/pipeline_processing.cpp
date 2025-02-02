@@ -14,8 +14,7 @@ void no_filter([[maybe_unused]] const FilterParams& params, const cv::Mat &origi
 	original.copyTo(filtered);
 }
 
-// Define the applyGammaCorrection function
-void applyGammaCorrection(cv::Mat& image, double gamma) {  // Pass by reference
+void applyGammaCorrection(cv::Mat& image, double gamma) {
     // Create a lookup table for gamma correction
     cv::Mat lookup(1, 256, CV_8U);
     uchar* p = lookup.ptr();
@@ -57,41 +56,6 @@ double calculateAutoGamma(const cv::Mat& image) {
     return gamma;
 }
 
-void customGrayscale(const cv::Mat& original, cv::Mat& filtered, double weightR, double weightG, double weightB) {
-    // Make the sum of weights equal 1
-    double weightSum = weightR + weightG + weightB;
-    weightR /= weightSum;
-    weightG /= weightSum;
-    weightB /= weightSum;
-
-    // Create an empty single-channel image
-    filtered = cv::Mat::zeros(original.size(), CV_8UC1);
-
-    // Iterate through each pixel
-    for (int row = 0; row < original.rows; ++row) {
-        for (int col = 0; col < original.cols; ++col) {
-            // Get the BGR values
-            cv::Vec3b bgr = original.at<cv::Vec3b>(row, col);
-            uchar blue = bgr[0];
-            uchar green = bgr[1];
-            uchar red = bgr[2];
-
-            // Calculate the grayscale value with custom weights
-            uchar gray = static_cast<uchar>(weightB*blue + weightG*green + weightR*red);
-
-            // Assign to the output image
-            filtered.at<uchar>(row, col) = gray;
-        }
-    }
-}
-
-void customTransformation(const cv::Mat& input, cv::Mat& output, double alpha, double n) {
-    input.convertTo(output, CV_32F, 1.0 / 255.0); // Normalize to [0, 1]
-    cv::pow(output, n, output);                  // Apply power transformation
-    output *= alpha;                             // Scale the brightness
-    output.convertTo(output, CV_8U, 255.0);      // Convert back to [0, 255]
-}
-
 void otsu_segmentation_filter(const FilterParams& params, const cv::Mat &original, cv::Mat &filtered) 
 {
 	bool gamma_auto_correction = params.otsu.gamma_auto_correction;
@@ -99,26 +63,10 @@ void otsu_segmentation_filter(const FilterParams& params, const cv::Mat &origina
 	
 	bool otsu_segmentation = params.otsu.otsu_segmentation;
 	
-	// Custom weights for red, green, and blue channels
-    double weightR = params.otsu.gsc_weight_r;
-	double weightG = params.otsu.gsc_weight_g;
-	double weightB = params.otsu.gsc_weight_b;
-
-    // Convert to grayscale with custom weights
-    customGrayscale(original, filtered, weightR, weightG, weightB);
-
-	cv::Mat output;
-	double alpha = 2.0; // Adjust for brightness normalization
-    double n = 5.0;     // Power for darkening
-    customTransformation(filtered, output, alpha, n);
-
-	filtered = output;
+	cv::cvtColor(original, filtered, cv::COLOR_BGR2GRAY);
 
 	if(gamma_auto_correction) {
 		double autoGamma = calculateAutoGamma(filtered) * gamma_auto_correction_weight;
-
-		// Print out the auto-calculated gamma for verification
-		//std::cout << "Automatically calculated gamma: " << autoGamma << std::endl;
 
 		applyGammaCorrection(filtered, autoGamma);
 	}
@@ -161,7 +109,7 @@ void otsu_segmentation_filter(const FilterParams& params, const cv::Mat &origina
 
 		// Find the threshold corresponding to the maximum sigma squared
 		int optimalThreshold = std::max_element(sigma2_list.begin(), sigma2_list.end()) - sigma2_list.begin();
-		//std::cout << "Automatically calculated threshold: " << optimalThreshold << std::endl;
+
 		// Apply the threshold to the image
 		cv::Mat binaryImage;
 		cv::threshold(filtered, binaryImage, optimalThreshold, 255, cv::THRESH_BINARY);
@@ -191,7 +139,6 @@ void otsu_segmentation_filter(const FilterParams& params, const cv::Mat &origina
 		filtered = openedImage;
 	}
 }
-
 
 void apply_filter(const std::string& filter, const FilterParams& params, const cv::Mat &original, cv::Mat &filtered)
 {

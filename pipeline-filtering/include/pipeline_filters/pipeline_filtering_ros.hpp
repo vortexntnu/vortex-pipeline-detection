@@ -41,6 +41,12 @@ private:
     void check_and_subscribe_to_image_topic();
 
     /**
+     * @brief Create publisher for filtered image
+     * 
+    */
+    void create_image_publisher();
+
+    /**
      * @brief Set the filter parameters for the FilterParams struct.
      * 
     */
@@ -93,6 +99,12 @@ private:
      * 
     */
     std::string image_topic_;
+
+    /**
+     * @brief The image topic to publish to
+     * 
+    */
+    std::string image_pub_topic_;
 
     /**
      * @brief The filter parameters
