@@ -10,24 +10,23 @@
 #include <sensor_msgs/msg/image.hpp>
 
 class PipelineLineFittingNode : public rclcpp::Node {
+   public:
+    PipelineLineFittingNode(const rclcpp::NodeOptions& options);
 
-public:
-  PipelineLineFittingNode(const rclcpp::NodeOptions &options);
+    ~PipelineLineFittingNode() {};
 
-  ~PipelineLineFittingNode() {};
+   private:
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr
+        image_visualization_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pose_array_pub_;
 
-private:
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr
-      image_visualization_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pose_array_pub_;
+    LinedetectorPipe pipeline;
+    bool publish_visualization_;
 
-  LinedetectorPipe pipeline;
-  bool publish_visualization_;
+    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
 
-  void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
-
-  cv::Mat draw_lines(cv::Mat &image, const vector<Line> &lines);
+    cv::Mat draw_lines(cv::Mat& image, const vector<Line>& lines);
 };
 
-#endif // PIPELINE_LINE_FITTING_ROS_HPP
+#endif  // PIPELINE_LINE_FITTING_ROS_HPP

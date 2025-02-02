@@ -1,8 +1,8 @@
 # Pipeline filtering
-This package provides a filter performing binary segmentaion on images.
+This package provides a filter performing binary segmentation on images.
 
 ## Usage
-The package subsribes to an image feed. In order to create this download the `tacc2` bag from Teams and put it in a directory called `bags` inside of your workspace. Then you can play the bag using the following command:
+The package subscribes to an image feed. In order to create this download the `tacc2` bag from Teams and put it in a directory called `bags` inside of your workspace. Then you can play the bag using the following command:
 ```
 ros2 bag play bags/tacc2/ -l
 ```
