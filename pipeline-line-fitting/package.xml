@@ -16,6 +16,7 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>OpenCV</exec_depend>
+  <depend>armadillo</depend>
   
   <export>
     <build_type>ament_cmake</build_type>
