@@ -1,11 +1,10 @@
-#include <iostream>
-#include <pipeline_line_fitting/linedetectorPipe.hpp>
-#include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <chrono>
+#include <iostream>
+#include <opencv2/opencv.hpp>
+#include <pipeline_line_fitting/linedetectorPipe.hpp>
 
 using namespace std;
-
 
 void thinningIteration(cv::Mat& img, int iter) {
     cv::Mat marker = cv::Mat::zeros(img.size(), CV_8UC1);
@@ -66,7 +65,6 @@ void LinedetectorPipe::_preprocess(cv::Mat& img, bool dist) {
     scaleX = static_cast<double>(size) / img.cols;
     scaleY = static_cast<double>(size) / img.rows;
 
-
     cv::resize(img, img, cv::Size(size, size));
 
     // Apply distance transform to get the center lines
@@ -92,7 +90,7 @@ void LinedetectorPipe::_preprocess(cv::Mat& img, bool dist) {
     removeBorderArtifacts(img);
 }
 
-LinedetectorPipe::~LinedetectorPipe(){
+LinedetectorPipe::~LinedetectorPipe() {
     // Destructor
 }
 
@@ -100,7 +98,10 @@ void LinedetectorPipe::_postprocess() {
     // Postprocess
 }
 
-int LinedetectorPipe::detectSingleLine(const mat &points, const mat &values, const vector<Line> &lines, const int i) {
+int LinedetectorPipe::detectSingleLine(const mat& points,
+                                       const mat& values,
+                                       const vector<Line>& lines,
+                                       const int i) {
     // Extract columns and reshape
     if (points.n_rows < 5) {
         return 1;
@@ -119,15 +120,17 @@ int LinedetectorPipe::detectSingleLine(const mat &points, const mat &values, con
     randsac.fit(X, y, values, lines);
 
     // Check the best_fit and bestValue conditions
-    if (randsac.bestFit.params.size() == 0 || randsac.bestScore < finalScorethresh) {
+    if (randsac.bestFit.params.size() == 0 ||
+        randsac.bestScore < finalScorethresh) {
         return 1;
     }
-    cout << "Found line " << i+1 << " with score: " << randsac.bestScore << endl;
+    cout << "Found line " << i + 1 << " with score: " << randsac.bestScore
+         << endl;
 
     return 0;
 }
 
-void LinedetectorPipe::_getEndPoints(Line &line, bool swap) {
+void LinedetectorPipe::_getEndPoints(Line& line, bool swap) {
     int min_x = -1;
     int max_x = -1;
     int min_x_yval;
@@ -141,8 +144,7 @@ void LinedetectorPipe::_getEndPoints(Line &line, bool swap) {
         int pixel;
         if (swap) {
             pixel = orgImg.at<uchar>(x, y);
-        }
-        else{
+        } else {
             pixel = orgImg.at<uchar>(y, x);
         }
         if (pixel > 0) {
@@ -157,17 +159,21 @@ void LinedetectorPipe::_getEndPoints(Line &line, bool swap) {
         }
     }
 
-    if (swap){
-        line.start = cv::Point(static_cast<int>(min_x_yval / scaleX), static_cast<int>(min_x / scaleY));
-        line.end = cv::Point(static_cast<int>(max_x_yval / scaleX), static_cast<int>(max_x / scaleY));
-    }
-    else{
-        line.start = cv::Point(static_cast<int>(min_x / scaleX), static_cast<int>(min_x_yval / scaleY));
-        line.end = cv::Point(static_cast<int>(max_x / scaleX), static_cast<int>(max_x_yval / scaleY));
+    if (swap) {
+        line.start = cv::Point(static_cast<int>(min_x_yval / scaleX),
+                               static_cast<int>(min_x / scaleY));
+        line.end = cv::Point(static_cast<int>(max_x_yval / scaleX),
+                             static_cast<int>(max_x / scaleY));
+    } else {
+        line.start = cv::Point(static_cast<int>(min_x / scaleX),
+                               static_cast<int>(min_x_yval / scaleY));
+        line.end = cv::Point(static_cast<int>(max_x / scaleX),
+                             static_cast<int>(max_x_yval / scaleY));
     }
 }
 
-vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines=3){
+vector<Line> LinedetectorPipe::operator()(const cv::Mat& img,
+                                          const int maxLines = 3) {
     orgImg = img.clone();
     cv::resize(orgImg, orgImg, cv::Size(size, size));
     processedImg = img.clone();
@@ -201,44 +207,53 @@ vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines
 
         if (returnCode) {
             cout << "RANSAC failed to find line number " << i + 1 << endl;
-            //rotate points and retry
+            // rotate points and retry
             mat newPoints(points.n_cols, points.n_rows);
             for (size_t j = 0; j < points.n_rows; ++j) {
                 newPoints(0, j) = points(j, 1);
                 newPoints(1, j) = points(j, 0);
             }
-            
-            newPoints = newPoints.t();
 
+            newPoints = newPoints.t();
 
             returnCode = detectSingleLine(newPoints, values, lines, i);
 
             if (returnCode) {
-                cout << "RANSAC failed to find line number " << i + 1 << " again" << endl;
+                cout << "RANSAC failed to find line number " << i + 1
+                     << " again" << endl;
                 continue;
             }
 
-            line = Line{randsac.bestFit.params[1], randsac.bestFit.params[0], randsac.bestScore, randsac.bestFit.vertical, {0, 0}, {0, 0}};
-            //use a rotated image to get end points also
+            line = Line{randsac.bestFit.params[1],
+                        randsac.bestFit.params[0],
+                        randsac.bestScore,
+                        randsac.bestFit.vertical,
+                        {0, 0},
+                        {0, 0}};
+            // use a rotated image to get end points also
             _getEndPoints(line, true);
-            //roate back end points
-            //line.end = cv::Point(line.end.y, line.end.x);
-            //line.start = cv::Point(line.start.y, line.start.x);
-            cout << "Line " << i+1 << " rotated ---------------------------" << endl;
+            // rotate back end points
+            // line.end = cv::Point(line.end.y, line.end.x);
+            // line.start = cv::Point(line.start.y, line.start.x);
+            cout << "Line " << i + 1 << " rotated ---------------------------"
+                 << endl;
 
-        }
-        else{
-            line = Line{randsac.bestFit.params[1], randsac.bestFit.params[0], randsac.bestScore, randsac.bestFit.vertical, {0, 0}, {0, 0}};
+        } else {
+            line = Line{randsac.bestFit.params[1],
+                        randsac.bestFit.params[0],
+                        randsac.bestScore,
+                        randsac.bestFit.vertical,
+                        {0, 0},
+                        {0, 0}};
             _getEndPoints(line);
-
         }
-
 
         // Remove points for next iteration
         mat newPoints;
         mat newValues;
         for (size_t j = 0; j < points.n_rows; ++j) {
-            if (find(randsac.rempointids.begin(), randsac.rempointids.end(), j) == randsac.rempointids.end()) {
+            if (find(randsac.rempointids.begin(), randsac.rempointids.end(),
+                     j) == randsac.rempointids.end()) {
                 newPoints.insert_rows(newPoints.n_rows, points.row(j));
                 newValues.insert_rows(newValues.n_rows, values.row(j));
             }
@@ -246,26 +261,27 @@ vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines
         points = newPoints;
         values = newValues;
 
-
         lines.push_back(line);
     }
 
     return lines;
 }
 
-cv::Mat LinedetectorPipe::drawResults(const cv::Mat &img, const vector<Line> &lines){
+cv::Mat LinedetectorPipe::drawResults(const cv::Mat& img,
+                                      const vector<Line>& lines) {
     // Draw the lines
     cv::Mat img2 = img.clone();
 
     _preprocess(img2);
     cv::resize(img2, img2, cv::Size(size, size));
     img2.convertTo(img2, CV_8U);
-    
+
     cv::cvtColor(img2, img2, cv::COLOR_GRAY2BGR);
 
     for (int i = 0; i < lines.size(); i += 1) {
         // Scale line endpoints back to original image coordinates if necessary
-        cv::line(img2, lines[i].start, lines[i].end, cv::Scalar(255, 0, 255), 2);
+        cv::line(img2, lines[i].start, lines[i].end, cv::Scalar(255, 0, 255),
+                 2);
     }
     return img2;
 }

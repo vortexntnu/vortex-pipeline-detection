@@ -2,28 +2,38 @@
 
 using std::placeholders::_1;
 
-PipelineLineFittingNode::PipelineLineFittingNode(const rclcpp::NodeOptions & options) : Node("pipeline_line_fitting_node", options)
-{
-    auto qos_profile = rclcpp::QoS(rclcpp::KeepLast(1)).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
+PipelineLineFittingNode::PipelineLineFittingNode(
+    const rclcpp::NodeOptions& options)
+    : Node("pipeline_line_fitting_node", options) {
+    auto qos_profile = rclcpp::QoS(rclcpp::KeepLast(1))
+                           .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
 
-    auto image_sub_topic = this->declare_parameter<std::string>("image_sub_topic", "/cam_down/image_color");
-    auto image_visualization_pub_topic = this->declare_parameter<std::string>("image_visualization_pub_topic", "/linefitting/visualization");
-    auto pose_array_pub_topic = this->declare_parameter<std::string>("pose_array_pub_topic", "/linefitting/pose_array");
+    auto image_sub_topic = this->declare_parameter<std::string>(
+        "image_sub_topic", "/cam_down/image_color");
+    auto image_visualization_pub_topic = this->declare_parameter<std::string>(
+        "image_visualization_pub_topic", "/linefitting/visualization");
+    auto pose_array_pub_topic = this->declare_parameter<std::string>(
+        "pose_array_pub_topic", "/linefitting/pose_array");
 
-    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(image_sub_topic, qos_profile, std::bind(&PipelineLineFittingNode::image_callback, this, _1));
+    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+        image_sub_topic, qos_profile,
+        std::bind(&PipelineLineFittingNode::image_callback, this, _1));
 
-    publish_visualization_ = this->declare_parameter("publish_visualization", true);
-    if (publish_visualization_){
-      image_visualization_pub_ = this->create_publisher<sensor_msgs::msg::Image>(image_visualization_pub_topic, qos_profile);
+    publish_visualization_ =
+        this->declare_parameter("publish_visualization", true);
+    if (publish_visualization_) {
+        image_visualization_pub_ =
+            this->create_publisher<sensor_msgs::msg::Image>(
+                image_visualization_pub_topic, qos_profile);
     }
-    pose_array_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>(pose_array_pub_topic, qos_profile);
-
+    pose_array_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>(
+        pose_array_pub_topic, qos_profile);
 
     pipeline = LinedetectorPipe();
 }
 
-void PipelineLineFittingNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
-{
+void PipelineLineFittingNode::image_callback(
+    const sensor_msgs::msg::Image::SharedPtr msg) {
     cv::Mat img;
     try {
         img = cv_bridge::toCvCopy(msg, "mono8")->image;
@@ -59,20 +69,22 @@ void PipelineLineFittingNode::image_callback(const sensor_msgs::msg::Image::Shar
     }
 
     pose_array_pub_->publish(message);
-    
-    if (publish_visualization_){
+
+    if (publish_visualization_) {
         auto img_color = draw_lines(img, lines);
-        auto output_image = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img_color).toImageMsg();
+        auto output_image =
+            cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img_color)
+                .toImageMsg();
         output_image->header = msg->header;
         image_visualization_pub_->publish(*output_image);
     }
 }
 
-cv::Mat PipelineLineFittingNode::draw_lines(cv::Mat &image, const vector<Line> &lines)
-{
+cv::Mat PipelineLineFittingNode::draw_lines(cv::Mat& image,
+                                            const vector<Line>& lines) {
     cv::Mat img_color;
-    //intregrate with the size parameter
-    //pipeline._preprocess(image);
+    // integrate with the size parameter
+    // pipeline._preprocess(image);
     cv::cvtColor(image, img_color, cv::COLOR_GRAY2BGR);
 
     cv::Mat img_with_lines = img_color.clone();
@@ -86,6 +98,5 @@ cv::Mat PipelineLineFittingNode::draw_lines(cv::Mat &image, const vector<Line> &
 
     return img_color;
 }
-
 
 RCLCPP_COMPONENTS_REGISTER_NODE(PipelineLineFittingNode)
