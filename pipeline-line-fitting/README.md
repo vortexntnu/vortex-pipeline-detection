@@ -1,8 +1,8 @@
 # Piplinelinelinefittingpipeline (official name, don't let anyone tell you otherwise)
-A package to find two centerlines along a pipline mask.
+A package to find two centerlines along a pipeline mask.
 ## Usage
 Lines are represented by endpoints and exported as a posearray and published.
-In order to generate a test, you can use a rosbag. When installed, you can lanuch the bag using something like this
+In order to generate a test, you can use a rosbag. When installed, you can launch the bag using something like this
 ```
 ros2 bag play bags/tacc2/tacc2_0.db3 --start-offset 180
 ```
@@ -18,7 +18,7 @@ We have the following parameters to be tuned:
 | n | int | How many random points to choose to start each iteration |
 | k | int | How many iterations of randsac to run |
 | t | float | Threshold for points to be considered inliers, for the purpose of scoring |
-| fracOfPoints | float | minium fraction of points that need to bee inliers for a line to be considered |
+| fracOfPoints | float | minimum fraction of points that need to bee inliers for a line to be considered |
 | removeT | float | Threshold for points to be removed between iterations |
 | finalScorethresh | float | required score to be counted as a detected line |
 | minTurnAngle | float | minimum angle difference between lines, radians (ofc) |

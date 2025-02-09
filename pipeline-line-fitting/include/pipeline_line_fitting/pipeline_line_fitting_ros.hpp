@@ -8,17 +8,16 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 
-
 class PipelineLineFittingNode : public rclcpp::Node {
    public:
     PipelineLineFittingNode(const rclcpp::NodeOptions& options);
 
     ~PipelineLineFittingNode() {};
 
-private:
-
+   private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr imageSub_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr imageVisualizationPub_;   
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr
+        imageVisualizationPub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr poseArrayPub_;
 
     LinedetectorPipe pipeline_;
@@ -27,7 +26,7 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
     RandsacParams fetchParams();
 
-    cv::Mat drawLines(cv::Mat &image, const std::vector<Line> &lines);
+    cv::Mat drawLines(cv::Mat& image, const std::vector<Line>& lines);
 };
 
 #endif  // PIPELINE_LINE_FITTING_ROS_HPP
