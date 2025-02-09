@@ -51,10 +51,7 @@ LinedetectorPipe::~LinedetectorPipe() {};
 
 void LinedetectorPipe::postprocess() {}
 
-int LinedetectorPipe::detectSingleLine(const arma::mat& points,
-                                       const arma::mat& values,
-                                       const std::vector<Line>& lines,
-                                       const int i) {
+int LinedetectorPipe::detectSingleLine(const arma::mat &points, const arma::mat &values, const std::vector<Line> &lines, const int i, bool flipped) {
     // Extract columns and reshape
     if (points.n_rows < 5) {
         return 1;
@@ -70,7 +67,7 @@ int LinedetectorPipe::detectSingleLine(const arma::mat& points,
     randsac_.d = d;
 
     // Fit the RANSAC model
-    randsac_.fit(X, y, values, lines);
+    randsac_.fit(X, y, values, lines, flipped);
 
     // Check the best_fit and bestValue conditions
     if (randsac_.bestFit.params.size() == 0 ||
@@ -125,8 +122,7 @@ void LinedetectorPipe::getEndPoints(Line& line, bool swap) {
     }
 }
 
-std::vector<Line> LinedetectorPipe::operator()(const cv::Mat& img,
-                                               const int maxLines = 3) {
+std::vector<Line> LinedetectorPipe::detect(const cv::Mat &img, const int maxLines=3){
     orgImg_ = img.clone();
     cv::resize(orgImg_, orgImg_, cv::Size(size_, size_));
     processedImg_ = img.clone();
@@ -167,7 +163,7 @@ std::vector<Line> LinedetectorPipe::operator()(const cv::Mat& img,
 
             newPoints = newPoints.t();
 
-            returnCode = detectSingleLine(newPoints, values, lines, i);
+            returnCode = detectSingleLine(newPoints, values, lines, i, true);
 
             if (returnCode) {
                 std::cout << "RANSAC failed to find line number " << i + 1
@@ -180,9 +176,11 @@ std::vector<Line> LinedetectorPipe::operator()(const cv::Mat& img,
             // use a rotated image to get end points also
             getEndPoints(line, true);
 
-        } else {
-            line = Line{randsac_.bestFit.params[1], randsac_.bestFit.params[0],
-                        randsac_.bestScore};
+            std::cout << " -------------------------------------------------" << std::endl;
+
+        }
+        else{
+            line = Line{randsac_.bestFit.params[1], randsac_.bestFit.params[0], randsac_.bestScore};
             getEndPoints(line);
         }
 

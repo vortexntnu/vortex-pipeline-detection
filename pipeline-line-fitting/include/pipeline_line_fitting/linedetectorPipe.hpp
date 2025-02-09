@@ -32,20 +32,18 @@ class LinedetectorPipe {
     RANDSAC randsac_;
     cv::Mat processedImg_;
 
-    // quick summary of the pipeline
-   public:
-    void preprocess(cv::Mat& img, bool dist = true);
-    int detectSingleLine(const arma::mat& points,
-                         const arma::mat& values,
-                         const std::vector<Line>& lines,
-                         const int i);
+    //quick summary of the pipeline
+    public:
+        void preprocess(cv::Mat &img, bool dist=true);
+    int detectSingleLine(const arma::mat &points, const arma::mat &values, const std::vector<Line> &lines, const int i, bool flipped = false);
     void postprocess();
     void getEndPoints(Line& line, bool swap = false);
 
-   public:
-    ~LinedetectorPipe();
-    // call operator is the entry point for the pipeline
-    std::vector<Line> operator()(const cv::Mat& img, const int maxLines);
+    public:
+
+        ~LinedetectorPipe();
+        //call operator is the entry point for the pipeline
+        std::vector<Line> detect(const cv::Mat &img, const int maxLines);
 
     LinedetectorPipe();
     LinedetectorPipe(RandsacParams params) {

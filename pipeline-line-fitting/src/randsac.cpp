@@ -62,9 +62,9 @@ RANDSAC::~RANDSAC() {
     reset();
 }
 
-bool RANDSAC::legalAlpha(double alpha, const vector<Line>& lines) {
-    for (int i = 0; i < lines.size(); i++) {
-        if (abs(atan(lines[i].slope) - atan(alpha)) < turnAngle_) {
+bool RANDSAC::legalAlpha(double alpha, const vector<Line> &lines, bool flipped){
+    for (int i = 0; i < lines.size(); i++){
+        if (abs(atan(lines[i].slope) - atan(alpha) + flipped*3.14) < turnAngle_){
             return false;
         }
     }
@@ -74,10 +74,7 @@ arma::mat RANDSAC::predict(const arma::mat& X) {
     return bestFit.predict(X);
 }
 
-void RANDSAC::fit(const arma::mat& X,
-                  const arma::mat& y,
-                  const arma::mat& values,
-                  const vector<Line>& lines) {
+void RANDSAC::fit (const arma::mat &X, const arma::mat &y, const arma::mat &values, const vector<Line> &lines, bool flipped){
     reset();
 
     random_device rd;
@@ -113,8 +110,7 @@ void RANDSAC::fit(const arma::mat& X,
             }
         }
 
-        if (inlier_ids.size() > 10 &&
-            legalAlpha(maybe_model.params[1], lines)) {
+        if (inlier_ids.size() > 10 && legalAlpha(maybe_model.params[1], lines, flipped)) {
             failed_ = false;
 
             vector<int> inlier_points = maybe_inliers;

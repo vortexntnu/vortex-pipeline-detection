@@ -76,7 +76,7 @@ void PipelineLineFittingNode::imageCallback(
         return;
     }
 
-    std::vector<Line> lines = pipeline_(img, 2);
+    std::vector<Line> lines = pipeline_.detect(img, 2);
     auto message = geometry_msgs::msg::PoseArray();
     message.header = msg->header;
 
@@ -108,7 +108,7 @@ cv::Mat PipelineLineFittingNode::drawLines(cv::Mat& image,
     for (const auto& line : lines) {
         cv::Point start(line.start.x, line.start.y);
         cv::Point end(line.end.x, line.end.y);
-        cv::line(img_color, start, end, cv::Scalar(255, 0, 255), 4);
+        cv::line(img_color, start, end, cv::Scalar(255, 0, 255), 10);
     }
     cv::addWeighted(img_with_lines, 0.5, img_color, 0.5, 0, img_color);
 

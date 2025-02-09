@@ -41,57 +41,38 @@ class RANDSAC {
     bool failed_;
 
     void reset();
-    bool legalAlpha(double alpha, const std::vector<Line>& lines);
+    bool legalAlpha(double alpha, const std::vector<Line> &lines, bool flipped);
+    public:
 
-   public:
-    double bestScore;
-    LinearRegressor bestFit;
+        double bestScore;
+        LinearRegressor bestFit;
 
     std::vector<int> orgPoints;
     std::vector<int> rempointids;
 
     int d;
 
-    RANDSAC() {};
-    RANDSAC(int n,
-            int k,
-            float t,
-            int d,
-            float remT,
-            float finalScorethresh,
-            float turnAngle,
-            LinearRegressor model = LinearRegressor(),
-            LossFunction loss = squareErrorLoss,
-            MetricFunction metric = value)
-        : n_(n),
-          k_(k),
-          t_(t),
-          d(d),
-          remT_(remT),
-          turnAngle_(turnAngle),
-          loss_(loss),
-          metric_(metric),
-          model_(model) {
-        /*
-        n: Minimum number of data points to estimate parameters
-        k: Maximum iterations allowed
-        t: Threshold value to determine if points are fit well
-        d: Number of close data points required to assert model fits well
-        remT: Threshold value to determine if what points should be removed
-        model: class implementing `fit` and `predict`
-        loss: function of `y_true` and `y_pred` that returns a vector, this is
-        the basis for the threshold metric: function of inliers that returns a
-        scalar, larger is better
-        */
-        reset();
-    }
-
-    ~RANDSAC();
-    arma::mat predict(const arma::mat& X);
-    void fit(const arma::mat& X,
-             const arma::mat& y,
-             const arma::mat& values,
-             const std::vector<Line>& lines);
+        RANDSAC(){};
+        RANDSAC(
+            int n, int k, float t, int d, float remT, float finalScorethresh, float turnAngle, 
+            LinearRegressor model = LinearRegressor(), LossFunction loss = squareErrorLoss, MetricFunction metric = value) 
+            : n_(n), k_(k), t_(t), d(d), remT_(remT), turnAngle_(turnAngle), loss_(loss), metric_(metric), model_(model){
+                /*
+                n: Minimum number of data points to estimate parameters
+                k: Maximum iterations allowed
+                t: Threshold value to determine if points are fit well
+                d: Number of close data points required to assert model fits well
+                remT: Threshold value to determine if what points should be removed
+                model: class implementing `fit` and `predict`
+                loss: function of `y_true` and `y_pred` that returns a vector, this is the basis for the threshold
+                metric: function of inliers that returns a scalar, larger is better
+                */
+               reset();
+            }
+    
+        ~RANDSAC();
+        arma::mat predict(const arma::mat &X);
+        void fit (const arma::mat &X, const arma::mat &y, const arma::mat &values, const std::vector<Line> &lines, bool flipped = false);
 };
 
 #endif  // RANDSAC_HPP
