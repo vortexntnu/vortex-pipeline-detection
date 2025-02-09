@@ -51,7 +51,11 @@ LinedetectorPipe::~LinedetectorPipe() {};
 
 void LinedetectorPipe::postprocess() {}
 
-int LinedetectorPipe::detectSingleLine(const arma::mat &points, const arma::mat &values, const std::vector<Line> &lines, const int i, bool flipped) {
+int LinedetectorPipe::detectSingleLine(const arma::mat& points,
+                                       const arma::mat& values,
+                                       const std::vector<Line>& lines,
+                                       const int i,
+                                       bool flipped) {
     // Extract columns and reshape
     if (points.n_rows < 5) {
         return 1;
@@ -122,7 +126,8 @@ void LinedetectorPipe::getEndPoints(Line& line, bool swap) {
     }
 }
 
-std::vector<Line> LinedetectorPipe::detect(const cv::Mat &img, const int maxLines=3){
+std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
+                                           const int maxLines = 3) {
     orgImg_ = img.clone();
     cv::resize(orgImg_, orgImg_, cv::Size(size_, size_));
     processedImg_ = img.clone();
@@ -176,11 +181,12 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat &img, const int maxLine
             // use a rotated image to get end points also
             getEndPoints(line, true);
 
-            std::cout << " -------------------------------------------------" << std::endl;
+            std::cout << " -------------------------------------------------"
+                      << std::endl;
 
-        }
-        else{
-            line = Line{randsac_.bestFit.params[1], randsac_.bestFit.params[0], randsac_.bestScore};
+        } else {
+            line = Line{randsac_.bestFit.params[1], randsac_.bestFit.params[0],
+                        randsac_.bestScore};
             getEndPoints(line);
         }
 
