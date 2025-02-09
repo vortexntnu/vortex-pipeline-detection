@@ -63,7 +63,7 @@ void PipelineLineFittingNode::imageCallback(const sensor_msgs::msg::Image::Share
         return;
     }
 
-    vector<Line> lines = pipeline_(img, 2);
+    std::vector<Line> lines = pipeline_(img, 2);
     auto message = geometry_msgs::msg::PoseArray();
     message.header = msg->header;
 
@@ -82,10 +82,10 @@ void PipelineLineFittingNode::imageCallback(const sensor_msgs::msg::Image::Share
     }
 }
 
-cv::Mat PipelineLineFittingNode::drawLines(cv::Mat &image, const vector<Line> &lines)
+cv::Mat PipelineLineFittingNode::drawLines(cv::Mat &image, const std::vector<Line> &lines)
 {
     cv::Mat img_color;
-    //pipeline.preprocess(image);
+    //pipeline_.preprocess(image);
     cv::cvtColor(image, img_color, cv::COLOR_GRAY2BGR);
 
     cv::Mat img_with_lines = img_color.clone();

@@ -5,9 +5,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
-using namespace std;
-
-struct Line {
+struct Line{
     double slope;
     double intercept;
     double score;
@@ -21,8 +19,8 @@ double value(const arma::mat &inliersVal);
 using LossFunction = arma::mat(*)(const arma::mat&, const arma::mat&);
 using MetricFunction = double(*)(const arma::mat&);
 
-struct LinearRegressor {
-    vector<double> params;
+struct LinearRegressor{
+    std::vector<double> params;
     bool vertical;
     LinearRegressor();
     ~LinearRegressor();
@@ -42,17 +40,15 @@ class RANDSAC{
     arma::mat points_;
     bool failed_;
 
-
-
     void reset();
-    bool legalAlpha(double alpha, const vector<Line> &lines);
+    bool legalAlpha(double alpha, const std::vector<Line> &lines);
     public:
 
         double bestScore;
         LinearRegressor bestFit;
 
-    vector<int> orgPoints;
-    vector<int> rempointids;
+        std::vector<int> orgPoints;
+        std::vector<int> rempointids;
 
     int d;
 
@@ -76,7 +72,7 @@ class RANDSAC{
     
         ~RANDSAC();
         arma::mat predict(const arma::mat &X);
-        void fit (const arma::mat &X, const arma::mat &y, const arma::mat &values, const vector<Line> &lines);
+        void fit (const arma::mat &X, const arma::mat &y, const arma::mat &values, const std::vector<Line> &lines);
 };
 
 #endif //RANDSAC_HPP

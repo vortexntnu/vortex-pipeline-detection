@@ -5,8 +5,6 @@
 #include <opencv2/ximgproc.hpp>
 #include <chrono>
 
-using namespace std;
-
 
 void removeBorderArtifacts(cv::Mat& img) {
     img.row(0).setTo(cv::Scalar(0));
@@ -22,6 +20,9 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
 
 
     cv::resize(img, img, cv::Size(size_, size_));
+    
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::morphologyEx(img, img, cv::MORPH_CLOSE, kernel);
 
     // Apply distance transform to get the center lines
     if (dist) {
@@ -37,7 +38,7 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
     img.convertTo(img, CV_8U, 255);
 
     // Apply morphological operations to clean up the result
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    //cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
     cv::morphologyEx(img, img, cv::MORPH_CLOSE, kernel);
 
     // Skeletonize the image using Zhang-Suen thinning algorithm
@@ -52,7 +53,7 @@ LinedetectorPipe::~LinedetectorPipe(){};
 void LinedetectorPipe::postprocess() {
 }
 
-int LinedetectorPipe::detectSingleLine(const arma::mat &points, const arma::mat &values, const vector<Line> &lines, const int i) {
+int LinedetectorPipe::detectSingleLine(const arma::mat &points, const arma::mat &values, const std::vector<Line> &lines, const int i) {
     // Extract columns and reshape
     if (points.n_rows < 5) {
         return 1;
@@ -74,7 +75,7 @@ int LinedetectorPipe::detectSingleLine(const arma::mat &points, const arma::mat 
     if (randsac_.bestFit.params.size() == 0 || randsac_.bestScore < finalScorethresh_) {
         return 1;
     }
-    cout << "Found line " << i+1 << " with score: " << randsac_.bestScore << endl;
+    std::cout << "Found line " << i+1 << " with score: " << randsac_.bestScore << std::endl;
 
     return 0;
 }
@@ -119,14 +120,14 @@ void LinedetectorPipe::getEndPoints(Line &line, bool swap) {
     }
 }
 
-vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines=3){
+std::vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines=3){
     orgImg_ = img.clone();
     cv::resize(orgImg_, orgImg_, cv::Size(size_, size_));
     processedImg_ = img.clone();
     preprocess(processedImg_);
 
     // Find points where img > 0
-    vector<cv::Point> pointList;
+    std::vector<cv::Point> pointList;
     cv::findNonZero(processedImg_, pointList);
 
     // Convert points to arma::mat
@@ -142,14 +143,14 @@ vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines
         values(i, 0) = processedImg_.at<uchar>(pointList[i].y, pointList[i].x);
     }
 
-    vector<Line> lines;
+    std::vector<Line> lines;
 
     for (int i = 0; i < maxLines; ++i) {
         int returnCode = detectSingleLine(points, values, lines, i);
         Line line;
 
         if (returnCode) {
-            cout << "RANSAC failed to find line number " << i + 1 << endl;
+            std::cout << "RANSAC failed to find line number " << i + 1 << std::endl;
             //rotate points and retry
             arma::mat newPoints(points.n_cols, points.n_rows);
             for (size_t j = 0; j < points.n_rows; ++j) {
@@ -162,15 +163,13 @@ vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines
             returnCode = detectSingleLine(newPoints, values, lines, i);
 
             if (returnCode) {
-                cout << "RANSAC failed to find line number " << i + 1
-                     << " again" << endl;
+                std::cout << "RANSAC failed to find line number " << i + 1 << " again" << std::endl;
                 continue;
             }
 
             line = Line{randsac_.bestFit.params[1], randsac_.bestFit.params[0], randsac_.bestScore};
             //use a rotated image to get end points also
             getEndPoints(line, true);
-            cout << "Line " << i+1 << " rotated ---------------------------" << endl;
 
         }
         else{
@@ -183,7 +182,7 @@ vector<Line> LinedetectorPipe::operator()(const cv::Mat &img, const int maxLines
         arma::mat newPoints;
         arma::mat newValues;
         for (size_t j = 0; j < points.n_rows; ++j) {
-            if (find(randsac_.rempointids.begin(), randsac_.rempointids.end(), j) == randsac_.rempointids.end()) {
+            if (std::find(randsac_.rempointids.begin(), randsac_.rempointids.end(), j) == randsac_.rempointids.end()) {
                 newPoints.insert_rows(newPoints.n_rows, points.row(j));
                 newValues.insert_rows(newValues.n_rows, values.row(j));
             }

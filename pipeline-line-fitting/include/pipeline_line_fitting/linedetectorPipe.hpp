@@ -5,7 +5,6 @@
 #include <iostream>
 #include <pipeline_line_fitting/randsac.hpp>
 
-using namespace std;
 
 struct RandsacParams{
     int n;
@@ -38,7 +37,7 @@ class LinedetectorPipe{
     //quick summary of the pipeline
     public:
         void preprocess(cv::Mat &img, bool dist=true);
-    int detectSingleLine(const arma::mat &points, const arma::mat &values, const vector<Line> &lines, const int i);
+    int detectSingleLine(const arma::mat &points, const arma::mat &values, const std::vector<Line> &lines, const int i);
     void postprocess();
     void getEndPoints(Line &line, bool swap=false);
 
@@ -46,7 +45,7 @@ class LinedetectorPipe{
 
         ~LinedetectorPipe();
         //call operator is the entry point for the pipeline
-        vector<Line> operator()(const cv::Mat &img, const int maxLines);
+        std::vector<Line> operator()(const cv::Mat &img, const int maxLines);
 
         LinedetectorPipe();
         LinedetectorPipe(RandsacParams params) {

@@ -27,7 +27,7 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
     RandsacParams fetchParams();
 
-    cv::Mat drawLines(cv::Mat &image, const vector<Line> &lines);
+    cv::Mat drawLines(cv::Mat &image, const std::vector<Line> &lines);
 };
 
 #endif  // PIPELINE_LINE_FITTING_ROS_HPP

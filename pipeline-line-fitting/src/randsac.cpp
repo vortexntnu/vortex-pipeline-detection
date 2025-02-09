@@ -1,7 +1,10 @@
 
 #include <pipeline_line_fitting/randsac.hpp>
 
+//why is this still here? because armadillo freaks out if it's not here, so here it will stay
 using namespace std;
+
+
 //Utils
 arma::mat squareErrorLoss(const arma::mat &y_true, const arma::mat &y_pred){
     return square(y_true - y_pred);
@@ -32,7 +35,7 @@ void LinearRegressor::fit(const arma::mat &X, const arma::mat &y){
 
     } else {
         // Solve the normal equation
-        params = arma::conv_to<vector<double>>::from(solve(XtX, X_.t() * y));
+        params = arma::conv_to<std::vector<double>>::from(solve(XtX, X_.t() * y));
         vertical = false;
     }
 }
