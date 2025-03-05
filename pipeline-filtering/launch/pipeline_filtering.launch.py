@@ -8,7 +8,7 @@ def generate_launch_description():
             package='pipeline_filtering',
             executable='pipeline_filtering_node',
             name='pipeline_filtering_node',
-            parameters=[os.path.join(get_package_share_directory('pipeline_filtering'),'params','pipeline_filtering_params.yaml')],
+            parameters=[os.path.join(get_package_share_directory('pipeline_filtering'),'config','pipeline_filtering_params.yaml')],
             output='screen',
         )
     return LaunchDescription([
