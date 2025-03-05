@@ -19,10 +19,8 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
 
     cv::resize(img, img, cv::Size(size_, size_));
 
-
-
-    cv::Mat kernel =
-        cv::getStructuringElement(cv::MORPH_RECT, cv::Size(morph_close_size_, morph_close_size_));
+    cv::Mat kernel = cv::getStructuringElement(
+        cv::MORPH_RECT, cv::Size(morph_close_size_, morph_close_size_));
     cv::morphologyEx(img, img, cv::MORPH_CLOSE, kernel);
 
     // Apply distance transform to get the center lines
