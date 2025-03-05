@@ -14,9 +14,12 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(OpenCV 4.5.4 REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(vortex_msgs REQUIRED)
 
 include_directories(include)
 
@@ -40,8 +43,10 @@ target_include_directories(${LIB_NAME} PUBLIC
 ament_target_dependencies(${LIB_NAME} PUBLIC
   rclcpp
   rclcpp_components
+  rclcpp_action
   cv_bridge
   sensor_msgs
+  vortex_msgs
 )
 
 rclcpp_components_register_node(
@@ -67,7 +72,7 @@ install(
 
 install(DIRECTORY
   launch
-  params
+  config
   DESTINATION share/${PROJECT_NAME}/
 )
 
