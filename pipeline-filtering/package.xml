@@ -15,7 +15,6 @@
 
   <depend>cv_bridge</depend>
   <depend>sensor_msgs</depend>
-  <depend>image_transport</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
   <depend>rclcpp_components</depend>
