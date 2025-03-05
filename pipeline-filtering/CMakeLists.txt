@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
 project(pipeline_filtering)
 
-# === C++ standard ===
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
 endif()
@@ -10,14 +9,12 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(OpenCV 4.5.4 REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 
 include_directories(include)
 
@@ -51,7 +48,6 @@ rclcpp_components_register_node(
     EXECUTABLE ${PROJECT_NAME}_node
 )
 
-# Export the target for other packages to use
 ament_export_targets(export_${LIB_NAME})
 
 install(TARGETS ${LIB_NAME}
