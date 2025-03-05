@@ -11,6 +11,8 @@ RandsacParams PipelineLineFittingNode::fetchParams() {
     this->declare_parameter("finalScorethresh", 65.0);
     this->declare_parameter("minTurnAngle", 1.5);
     this->declare_parameter("size", 200);
+    this->declare_parameter("morph_close_size", 10);
+    this->declare_parameter("dist_thresh", 0.2);
     RandsacParams params;
     params.n = this->get_parameter("n").as_int();
     params.k = this->get_parameter("k").as_int();
@@ -21,6 +23,8 @@ RandsacParams PipelineLineFittingNode::fetchParams() {
         this->get_parameter("finalScorethresh").as_double();
     params.minTurnAngle = this->get_parameter("minTurnAngle").as_double();
     params.size = this->get_parameter("size").as_int();
+    params.morph_close_size = this->get_parameter("morph_close_size").as_int();
+    params.dist_thresh = this->get_parameter("dist_thresh").as_double();
     return params;
 }
 

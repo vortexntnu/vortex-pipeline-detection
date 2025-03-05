@@ -19,8 +19,10 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
 
     cv::resize(img, img, cv::Size(size_, size_));
 
+
+
     cv::Mat kernel =
-        cv::getStructuringElement(cv::MORPH_RECT, cv::Size(20, 20));
+        cv::getStructuringElement(cv::MORPH_RECT, cv::Size(morph_close_size_, morph_close_size_));
     cv::morphologyEx(img, img, cv::MORPH_CLOSE, kernel);
 
     // Apply distance transform to get the center lines
@@ -30,7 +32,7 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
         cv::normalize(dist_img, dist_img, 0, 1.0, cv::NORM_MINMAX);
 
         // Threshold the distance transform image to get the skeleton
-        cv::threshold(dist_img, img, 0.2, 1.0, cv::THRESH_BINARY);
+        cv::threshold(dist_img, img, dist_thresh_, 1.0, cv::THRESH_BINARY);
     }
 
     // Convert the image to 8-bit

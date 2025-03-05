@@ -13,7 +13,7 @@ def generate_launch_description():
         parameters=[
             os.path.join(
                 get_package_share_directory("pipeline_line_fitting"),
-                "params",
+                "config",
                 "pipeline_line_fitting_params.yaml",
             )
         ],
