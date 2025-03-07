@@ -147,9 +147,10 @@ void RANDSAC::fit(const arma::mat& X,
                         y.rows(arma::conv_to<arma::uvec>::from(
                             std::vector<int>(ids.begin() + n_, ids.end()))));
                     rem_thresholded =
-                        loss_(X.rows(arma::conv_to<arma::uvec>::from(
-                                  std::vector<int>(ids.begin() + n_, ids.end()))),
-                              rem_x_pred) < remT_;
+                        loss_(
+                            X.rows(arma::conv_to<arma::uvec>::from(
+                                std::vector<int>(ids.begin() + n_, ids.end()))),
+                            rem_x_pred) < remT_;
                 }
 
                 rempointids.clear();
