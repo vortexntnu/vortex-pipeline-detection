@@ -1,10 +1,6 @@
 
 #include <pipeline_line_fitting/randsac.hpp>
 
-// why is this still here? because armadillo freaks out if it's not here, so
-// here it will stay
-using namespace std;
-
 // Utils
 arma::mat squareErrorLoss(const arma::mat& y_true, const arma::mat& y_pred) {
     return square(y_true - y_pred);
@@ -63,7 +59,7 @@ RANDSAC::~RANDSAC() {
 }
 
 bool RANDSAC::legalAlpha(double alpha,
-                         const vector<Line>& lines,
+                         const std::vector<Line>& lines,
                          bool flipped) {
     for (int i = 0; i < lines.size(); i++) {
         if (abs(atan(lines[i].slope) - atan(alpha) + flipped * 3.14) <
@@ -80,13 +76,13 @@ arma::mat RANDSAC::predict(const arma::mat& X) {
 void RANDSAC::fit(const arma::mat& X,
                   const arma::mat& y,
                   const arma::mat& values,
-                  const vector<Line>& lines,
+                  const std::vector<Line>& lines,
                   bool flipped) {
     reset();
 
-    random_device rd;
-    mt19937 rng(rd());
-    vector<int> ids(X.n_rows);
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::vector<int> ids(X.n_rows);
     iota(ids.begin(), ids.end(), 0);
     arma::mat y_pred;
     arma::umat thresholded;
@@ -94,7 +90,7 @@ void RANDSAC::fit(const arma::mat& X,
     for (int i = 0; i < k_; i++) {
         shuffle(ids.begin(), ids.end(), rng);
 
-        vector<int> maybe_inliers(ids.begin(), ids.begin() + n_);
+        std::vector<int> maybe_inliers(ids.begin(), ids.begin() + n_);
         arma::uvec maybeInliersUvec =
             arma::conv_to<arma::uvec>::from(maybe_inliers);
 
@@ -105,12 +101,12 @@ void RANDSAC::fit(const arma::mat& X,
         thresholded.clear();
 
         y_pred = maybe_model.predict(X.rows(arma::conv_to<arma::uvec>::from(
-            vector<int>(ids.begin() + n_, ids.end()))));
+            std::vector<int>(ids.begin() + n_, ids.end()))));
         thresholded = loss_(y.rows(arma::conv_to<arma::uvec>::from(
-                                vector<int>(ids.begin() + n_, ids.end()))),
+                                std::vector<int>(ids.begin() + n_, ids.end()))),
                             y_pred) < t_;
 
-        vector<int> inlier_ids;
+        std::vector<int> inlier_ids;
         for (size_t j = n_; j < ids.size(); j++) {
             if (thresholded(j - n_)) {
                 inlier_ids.push_back(ids[j]);
@@ -121,7 +117,7 @@ void RANDSAC::fit(const arma::mat& X,
             legalAlpha(maybe_model.params[1], lines, flipped)) {
             failed_ = false;
 
-            vector<int> inlier_points = maybe_inliers;
+            std::vector<int> inlier_points = maybe_inliers;
             arma::uvec inlierIdsUvec =
                 arma::conv_to<arma::uvec>::from(inlier_ids);
             inlier_points.insert(inlier_points.end(), inlier_ids.begin(),
@@ -139,20 +135,20 @@ void RANDSAC::fit(const arma::mat& X,
                 arma::umat rem_thresholded;
                 arma::mat rem_y_pred =
                     better_model.predict(X.rows(arma::conv_to<arma::uvec>::from(
-                        vector<int>(ids.begin() + n_, ids.end()))));
+                        std::vector<int>(ids.begin() + n_, ids.end()))));
                 arma::mat rem_x_pred;
                 rem_thresholded =
                     loss_(y.rows(arma::conv_to<arma::uvec>::from(
-                              vector<int>(ids.begin() + n_, ids.end()))),
+                              std::vector<int>(ids.begin() + n_, ids.end()))),
                           rem_y_pred) < remT_;
 
                 if (better_model.vertical) {
                     rem_x_pred = better_model.predict(
                         y.rows(arma::conv_to<arma::uvec>::from(
-                            vector<int>(ids.begin() + n_, ids.end()))));
+                            std::vector<int>(ids.begin() + n_, ids.end()))));
                     rem_thresholded =
                         loss_(X.rows(arma::conv_to<arma::uvec>::from(
-                                  vector<int>(ids.begin() + n_, ids.end()))),
+                                  std::vector<int>(ids.begin() + n_, ids.end()))),
                               rem_x_pred) < remT_;
                 }
 
