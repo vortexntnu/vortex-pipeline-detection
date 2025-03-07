@@ -1,50 +1,53 @@
-cmake_minimum_required(VERSION 3.8)
-project(pipeline_filtering)
+cmake_minimum_required(VERSION 3.5)
+project(pipeline_line_fitting)
 
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 20)
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
-find_package(OpenCV 4.5.4 REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(Armadillo REQUIRED)
 find_package(cv_bridge REQUIRED)
 
 include_directories(include)
+include_directories(${OpenCV_INCLUDE_DIRS} ${ARMADILLO_INCLUDE_DIRS})
 
 set(LIB_NAME "${PROJECT_NAME}_component")
 
 add_library(${LIB_NAME} SHARED
-  src/pipeline_processing.cpp
-  src/pipeline_filtering_ros.cpp
+  src/pipeline_line_fitting_ros.cpp
+  src/randsac.cpp
+  src/linedetectorPipe.cpp
 )
 
 target_link_libraries(${LIB_NAME} PUBLIC
   ${OpenCV_LIBS}
+  ${ARMADILLO_LIBRARIES}
 )
 
 target_include_directories(${LIB_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${OpenCV_INCLUDE_DIRS}
+  ${ARMADILLO_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(${LIB_NAME} PUBLIC
   rclcpp
   rclcpp_components
-  cv_bridge
   sensor_msgs
+  geometry_msgs
+  cv_bridge
 )
 
 rclcpp_components_register_node(
     ${LIB_NAME}
-    PLUGIN "vortex::pipeline_processing::PipelineFilteringNode"
+    PLUGIN "PipelineLineFittingNode"
     EXECUTABLE ${PROJECT_NAME}_node
 )
 
