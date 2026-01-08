@@ -1,6 +1,6 @@
 {
-    "name": "vortex-deep-learning-pipelines-devcontainer",
-    "image": "vortex-deep-learning-pipelines:latest",
+    "name": "vortex-pipeline-detection-devcontainer",
+    "image": "vortex-pipeline-detection:latest",
     "customizations": {
         "vscode": {
             "settings": {
