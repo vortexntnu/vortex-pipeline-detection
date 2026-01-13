@@ -1,0 +1,9 @@
+pipeline_locator:
+  ros__parameters:
+    mask_topic: "/pipeline/segmentation_mask"
+    depth_topic: "/"
+    camera_info_topic: "/camera/camera_info"
+    publish_topic: "/"
+
+    debug: false
+    debug_topic: "/pipeline/debug_start_point"
