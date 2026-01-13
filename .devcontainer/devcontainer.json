@@ -4,27 +4,38 @@
     "customizations": {
         "vscode": {
             "settings": {
-                "terminal.integrated.defaultProfile.linux": "bash"
+                "terminal.integrated.defaultProfile.linux": "bash",
+                // 1. Disable Microsoft IntelliSense to let clangd take over
+                "C_Cpp.intelliSenseEngine": "disabled",
+                "cmake.autoSelectActiveFolder": false,
+                "cmake.configureOnOpen": false,
+                // 2. Tell clangd where to find the compilation database
+                "clangd.arguments": [
+                    "--compile-commands-dir=${workspaceFolder}/build",
+                    "--background-index",
+                    "--completion-style=detailed",
+                    "--header-insertion=never",
+                    "--clang-tidy",
+                    "--query-driver=/usr/bin/g++"
+                ],
+                // 3. Ensure CMake Tools generates the needed file
+                "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json"
             },
             "extensions": [
-                "ms-azuretools.vscode-docker",
-                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
+                "llvm-vs-code-extensions.vscode-clangd",
                 "ranch-hand-robotics.rde-pack",
+                "ms-python.python",
                 "ms-python.vscode-pylance",
-                "twxs.cmake",
-                "ms-vsliveshare.vsliveshare",
+                "usernamehw.errorlens",
                 "eamodio.gitlens",
-                "njpwerner.autodocstring",
-                "cschlosser.doxdocgen",
-                "xaver.clang-format",
-                "visualstudioexptteam.vscodeintellicode",
-                "ms-vscode-remote.remote-ssh",
+                "gruntfuggly.todo-tree",
                 "gxl.git-graph-3",
-                "ms-vscode-remote.remote-containers",
-                "gruntfuggly.todo-tree"
+                "eamodio.gitlens"
             ]
         }
     },
+    "postCreateCommand": "mkdir -p build && touch build/compile_commands.json",
     "remoteUser": "devuser",
     "workspaceFolder": "/ros2_ws",
     "workspaceMount": "source=${localWorkspaceFolder},target=/ros2_ws,type=bind,consistency=cached",

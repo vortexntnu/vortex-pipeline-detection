@@ -1,6 +1,15 @@
 #!/bin/bash
 # /ros2_ws/scripts/bashrc_extra.sh for ROS 2 container
 
+# Force colcon to always export compile commands and use symlinks
+colcon() {
+    if [[ "$1" == "build" ]]; then
+        command colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON "${@:2}"
+    else
+        command colcon "$@"
+    fi
+}
+
 # Print actions for clarity
 if [ -f /opt/ros/humble/setup.bash ]; then
     echo "[bashrc_extra] Sourcing ROS 2 underlay: /opt/ros/humble/setup.bash"

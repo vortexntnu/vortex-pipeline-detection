@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y \
     libopencv-dev \
     libpcl-dev \
     python3-colcon-common-extensions \
+    clangd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install cython
