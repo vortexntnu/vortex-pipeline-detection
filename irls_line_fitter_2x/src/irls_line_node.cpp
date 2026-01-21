@@ -4,6 +4,10 @@
 #include <std_msgs/msg/header.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
+#include "vortex_msgs/msg/line_segment2_d_array.hpp"
+
+#include "vortex_msgs/msg/line_segment2_d.hpp"
+#include "vortex_msgs/msg/point2_d.hpp"
 
 #include <numeric>
 #include <string>
@@ -12,7 +16,7 @@
 #include <limits>
 #include <algorithm>
 #include <iostream>
-#include <std_msgs/msg/bool.hpp>
+
 
 // ----------------------------- Robust Loss ----------------------------------
 enum class RobustLoss { HUBER, TUKEY };
@@ -22,6 +26,77 @@ struct LineModel {
   // Unit direction (vx, vy) and a point (x0, y0) on the line
   float vx{1.f}, vy{0.f}, x0{0.f}, y0{0.f};
 };
+
+// Clamp helper
+static inline int clampInt(int v, int lo, int hi) {
+    return std::max(lo, std::min(v, hi));
+}
+
+bool hasEnoughWhiteUnderLine(const cv::Mat& img,
+                             const cv::Vec4i& line,
+                             int bandHeight = 10,
+                             double minWhiteRatio = 0.60)
+{
+    CV_Assert(!img.empty());
+    CV_Assert(bandHeight > 0);
+    CV_Assert(minWhiteRatio >= 0.0 && minWhiteRatio <= 1.0);
+
+    // 1) Make a binary image (0/255)
+    cv::Mat gray, bin;
+    if (img.channels() == 3) {
+        cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+    } else {
+        gray = img;
+    }
+
+    // If already binary, this threshold won't hurt; otherwise it binarizes.
+    cv::threshold(gray, bin, 127, 255, cv::THRESH_BINARY);
+
+    // 2) Extract endpoints
+    cv::Point2f p1((float)line[0], (float)line[1]);
+    cv::Point2f p2((float)line[2], (float)line[3]);
+
+    cv::Point2f d = p2 - p1;
+    float len = std::sqrt(d.x * d.x + d.y * d.y);
+    if (len < 1e-6f) return false; // degenerate line
+
+    // 3) Normal vector to the line
+    cv::Point2f n(-d.y / len, d.x / len);
+
+    // Choose the "downward" side in image coordinates (y increases downward).
+    if (n.y < 0) n = -n;
+
+    // 4) Build a strip polygon under the line (parallelogram)
+    cv::Point2f p1b = p1 + n * (float)bandHeight;
+    cv::Point2f p2b = p2 + n * (float)bandHeight;
+
+    auto toClampedPoint = [&](const cv::Point2f& pf) {
+        int x = clampInt((int)std::lround(pf.x), 0, bin.cols - 1);
+        int y = clampInt((int)std::lround(pf.y), 0, bin.rows - 1);
+        return cv::Point(x, y);
+    };
+
+    std::vector<cv::Point> poly;
+    poly.reserve(4);
+    poly.push_back(toClampedPoint(p1));
+    poly.push_back(toClampedPoint(p2));
+    poly.push_back(toClampedPoint(p2b));
+    poly.push_back(toClampedPoint(p1b));
+
+    // 5) Mask the polygon and count white pixels inside
+    cv::Mat mask(bin.size(), CV_8UC1, cv::Scalar(0));
+    cv::fillConvexPoly(mask, poly, cv::Scalar(255));
+
+    int total = cv::countNonZero(mask);
+    if (total == 0) return false;
+
+    cv::Mat masked;
+    cv::bitwise_and(bin, mask, masked);
+    int white = cv::countNonZero(masked);
+
+    double ratio = (double)white / (double)total;
+    return ratio >= minWhiteRatio;
+}
 
 static inline float perpendicularDistance(const LineModel& L, const cv::Point2f& p) {
   // |(p - p0) x v| for unit v, in 2D this is |(dx * vy - dy * vx)|
@@ -204,8 +279,10 @@ class IRLSLineNode : public rclcpp::Node {
 public:
   IRLSLineNode() : Node("irls_line_node") {
     // Topics
-    input_topic_  = declare_parameter<std::string>("input_topic", "/filtered_image");
-    output_topic_ = declare_parameter<std::string>("output_topic", "/irls_line/image");
+    input_topic_        = declare_parameter<std::string>("input_topic", "/filtered_image");
+    output_topic_img_   = declare_parameter<std::string>("output_topic_img", "/irls_line/image");
+    output_topic_lines_ = declare_parameter<std::string>("output_topic_lines", "/irls_line/lines");
+
 
     // Preprocessing
     binary_threshold_ = declare_parameter<int>("binary_threshold", 200);
@@ -243,17 +320,13 @@ public:
     // Loss enum
     if (loss_type_str_ == "tukey") loss_ = RobustLoss::TUKEY; else loss_ = RobustLoss::HUBER;
 
-    auto qos_no_buffer =
-      rclcpp::QoS(rclcpp::KeepLast(1))
-        .best_effort()          // typical for image streams
-        .durability_volatile(); // don't persist samples
 
     sub_ = create_subscription<sensor_msgs::msg::Image>(
       input_topic_, rclcpp::SensorDataQoS(),
       std::bind(&IRLSLineNode::imageCb, this, std::placeholders::_1));
 
-    pub_ = create_publisher<sensor_msgs::msg::Image>(output_topic_, 10);
-    second_line_pub_ = create_publisher<std_msgs::msg::Bool>("/irls_line/second_drawn", 10);
+    pub_img_   = create_publisher<sensor_msgs::msg::Image>(output_topic_img_, 10);
+    pub_lines_ = create_publisher<vortex_msgs::msg::LineSegment2DArray>(output_topic_lines_, 10);
     
 
   }
@@ -298,8 +371,9 @@ private:
     return L;
   }
 
+  bool second_ok = false;
+
   void imageCb(const sensor_msgs::msg::Image::ConstSharedPtr msg) {
-    bool second_line_drawn = false;
     cv_bridge::CvImageConstPtr cv_ptr;
     try {
       cv_ptr = cv_bridge::toCvShare(msg, msg->encoding);
@@ -309,11 +383,8 @@ private:
     }
 
     cv::Mat gray;
-    if (cv_ptr->image.channels() == 3) {
-      cv::cvtColor(cv_ptr->image, gray, cv::COLOR_BGR2GRAY);
-    } else {
-      gray = cv_ptr->image.clone();
-    }
+    if (cv_ptr->image.channels() == 3) cv::cvtColor(cv_ptr->image, gray, cv::COLOR_BGR2GRAY);
+    else gray = cv_ptr->image; // no clone needed
 
     cv::Mat mask;
     cv::threshold(gray, mask, binary_threshold_, 255, cv::THRESH_BINARY);
@@ -321,7 +392,7 @@ private:
     std::vector<cv::Point> nz;
     cv::findNonZero(mask, nz);
     if ((int)nz.size() < min_pixels_) {
-      if (publish_original_if_fail_) publish(cv_ptr->image, msg->header);
+      if (publish_original_if_fail_) publishImage(cv_ptr->image, msg->header);
       RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "Too few mask pixels: %zu", nz.size());
       return;
     }
@@ -344,9 +415,13 @@ private:
     clippedSegmentFromPts(L1, pts, w, h, clip_to_object_, clip_max_dist_px_, p1a, p1b);
     cv::line(color, p1a, p1b, cv::Scalar(draw_b_, draw_g_, draw_r_), draw_thickness_, cv::LINE_AA);
 
-    // ----- Second-pass search for a crossing line -----
+  // ----- Second-pass search for a crossing line -----
   LineModel L2;
   cv::Point p2a, p2b;
+
+  int ix = 0;
+  int iy = 0;
+
   if (find_second_line_) {
     std::vector<cv::Point2f> pts2; pts2.reserve(pts.size());
     for (const auto& q : pts) {
@@ -356,49 +431,78 @@ private:
     if ((int)pts2.size() >= min_pixels_second_) {
       L2 = fitIRLS(pts2);
 
+      
+
       // Draw second line segment using its own point set for clipping
       if (clippedSegmentFromPts(L2, pts2, w, h, clip_to_object_, clip_max_dist_px_, p2a, p2b)) {
-        cv::line(color, p2a, p2b, cv::Scalar(draw2_b_, draw2_g_, draw2_r_), draw_thickness_, cv::LINE_AA);
-        second_line_drawn = true;  // NEW: mark drawn
-      }
 
-      // Optional: draw intersection
-      if (draw_intersection_) {
-        cv::Point2f ip;
-        if (intersectLines(L1, L2, ip)) {
-          int ix = std::clamp((int)std::lround(ip.x), 0, w - 1);
-          int iy = std::clamp((int)std::lround(ip.y), 0, h - 1);
-          cv::circle(color, cv::Point(ix, iy), intersection_radius_, cv::Scalar(0, 255, 255), cv::FILLED, cv::LINE_AA);
+        // NEW: check whiteness under the line segment before accepting it
+        // Replace `bw` with your black/white (binary) image Mat.
+        // bandHeight and ratio are adjustable.
+        const cv::Vec4i seg2(p2a.x, p2a.y, p2b.x, p2b.y);
+        second_ok = hasEnoughWhiteUnderLine(cv_ptr->image, seg2, /*bandHeight=*/10, /*minWhiteRatio=*/0.60);
+
+        if (second_ok) {
+          cv::line(color, p2a, p2b,
+                  cv::Scalar(draw2_b_, draw2_g_, draw2_r_),
+                  draw_thickness_, cv::LINE_AA);
         }
       }
+
+      // Optional: draw intersection (ONLY if the second line was accepted)
+      if (second_ok && draw_intersection_) {
+        cv::Point2f ip;
+        if (intersectLines(L1, L2, ip)) {
+          ix = std::clamp((int)std::lround(ip.x), 0, w - 1);
+          iy = std::clamp((int)std::lround(ip.y), 0, h - 1);
+          cv::circle(color, cv::Point(ix, iy), intersection_radius_,
+                    cv::Scalar(0, 255, 255), cv::FILLED, cv::LINE_AA);
+        }
+      }
+
+      // If you have downstream logic that uses L2, gate it on `second_ok`
+      // (or set a member flag like `second_line_valid_ = second_ok;`).
     }
   }
 
-  // NEW: report whether the second line was drawn
-  if (find_second_line_) {
-    if (second_line_drawn) {
-      RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000, "Second line drawn.");
-    } else {
-      RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000, "Second line NOT drawn (insufficient points or clipping failed).");
-    }
-  }
-   if (second_line_pub_) {
-    std_msgs::msg::Bool m;
-    m.data = second_line_drawn;
-    second_line_pub_->publish(m);
-    }
+    publishImage(color, msg->header);
+    publishLines(msg->header, p1a, p1b, second_ok, p2a, p2b);
 
-    publish(color, msg->header);
   }
 
-  void publish(const cv::Mat& bgr, const std_msgs::msg::Header& header) {
+  void publishImage(const cv::Mat& bgr, const std_msgs::msg::Header& header) {
     auto out = cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, bgr).toImageMsg();
-    pub_->publish(*out);
+    pub_img_->publish(*out);
+  }
+
+  static inline vortex_msgs::msg::LineSegment2D makeSeg(const cv::Point& a, const cv::Point& b) {
+    vortex_msgs::msg::LineSegment2D seg;
+    seg.p0.x = a.x; seg.p0.y = a.y;
+    seg.p1.x = b.x; seg.p1.y = b.y;
+    return seg;
+  }
+
+  void publishLines(const std_msgs::msg::Header& header,
+                    const cv::Point& p1a, const cv::Point& p1b,
+                    bool have_second,
+                    const cv::Point& p2a, const cv::Point& p2b)
+  {
+    vortex_msgs::msg::LineSegment2DArray arr;
+    arr.header = header;
+
+    arr.lines.push_back(makeSeg(p1a, p1b));
+    if (have_second) {
+      arr.lines.push_back(makeSeg(p2a, p2b));
+    }
+
+    pub_lines_->publish(arr);
   }
 
   // ----------------------------- Params & ROS --------------------------------
   // Topics
-  std::string input_topic_{"/filtered_image"}, output_topic_{"/irls_line/image"};
+  std::string input_topic_{"/filtered_image"};
+  std::string output_topic_img_{"/irls_line/image"};
+  std::string output_topic_lines_{"/irls_line/lines"};
 
   // Preprocessing
   int binary_threshold_{200}, min_pixels_{200};
@@ -429,8 +533,8 @@ private:
 
   // ROS
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_;
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_;
-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr second_line_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_img_;
+  rclcpp::Publisher<vortex_msgs::msg::LineSegment2DArray>::SharedPtr pub_lines_;
 };
 
 int main(int argc, char** argv) {

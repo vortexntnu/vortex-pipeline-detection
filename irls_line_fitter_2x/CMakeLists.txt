@@ -10,9 +10,11 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(vortex_msgs REQUIRED)
+
 
 add_executable(irls_line_node src/irls_line_node.cpp)
-ament_target_dependencies(irls_line_node rclcpp sensor_msgs cv_bridge)
+ament_target_dependencies(irls_line_node rclcpp sensor_msgs cv_bridge vortex_msgs)
 target_include_directories(irls_line_node PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(irls_line_node ${OpenCV_LIBS})
 
