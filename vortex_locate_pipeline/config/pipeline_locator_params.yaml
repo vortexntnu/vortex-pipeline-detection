@@ -1,9 +1,9 @@
 pipeline_locator:
   ros__parameters:
-    mask_topic: "/pipeline/segmentation_mask"
-    depth_topic: "/"
+    mask_topic: "/pipeline/camera/segmentation_mask"
+    depth_topic: "/unused"
     camera_info_topic: "/camera/camera_info"
-    publish_topic: "/"
+    publish_topic: "/unused2"
 
-    debug: false
+    debug: True
     debug_topic: "/pipeline/debug_start_point"

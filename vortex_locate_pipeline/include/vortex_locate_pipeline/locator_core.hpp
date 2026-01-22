@@ -18,7 +18,11 @@ struct CameraIntrinsics {
 class LocatorCore {
 public:
   // Find pipeline starting pixel in a binary mask (mono8). Returns (u,v).
+  // Uses skeletonization + endpoint detection (accurate but slower)
   static std::optional<cv::Point> findStartPixel(const cv::Mat &mask);
+
+  // Find centroid of bottom 20% of largest component
+  static std::optional<cv::Point> findStartPixelWithDebug(const cv::Mat &mask, cv::Mat &debug_out);
 
   // Backproject pixel (u,v) with depth z (meters) and intrinsics to 3D point
   // in camera frame.

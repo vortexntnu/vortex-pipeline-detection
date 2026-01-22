@@ -18,6 +18,7 @@ def generate_launch_description():
         name='pipeline_locator',
         parameters=[params_file],
         output='screen',
+        arguments=['--ros-args', '--log-level', 'debug'],
     )
 
     return LaunchDescription([node])

@@ -48,6 +48,9 @@ PipelineLocatorNode::PipelineLocatorNode(const rclcpp::NodeOptions &options)
 
 void PipelineLocatorNode::maskCallback(
     const sensor_msgs::msg::Image::SharedPtr msg) {
+  RCLCPP_DEBUG(this->get_logger(), "Received mask image %dx%d",
+               msg->width, msg->height);
+
   // Convert ROS image to single-channel binary mask (mono8 -> 0/255)
   cv::Mat mask;
   try {
@@ -60,19 +63,32 @@ void PipelineLocatorNode::maskCallback(
     return;
   }
 
-  // Use core API to find pixel
-  auto start_px = LocatorCore::findStartPixel(mask);
-  if (!start_px)
+  // Use core API to find pixel (with debug visualization if enabled)
+  std::optional<cv::Point> start_px;
+  cv::Mat debug_vis;
+
+  if (debug_) {
+    start_px = LocatorCore::findStartPixelWithDebug(mask, debug_vis);
+  } else {
+    start_px = LocatorCore::findStartPixel(mask);
+  }
+
+  if (!start_px) {
+    RCLCPP_DEBUG(this->get_logger(), "No pipeline start pixel found in this frame");
     return; // std::nullopt -> nothing to do
+  }
+
+  RCLCPP_INFO(this->get_logger(), "Found start pixel at (%d, %d)",
+              start_px->x, start_px->y);
+
   // Try to backproject to 3D if we have recent depth and camera info
 
-  // Optional debug visualization: mark start pixel and publish
-  if (debug_) {
-    cv::Mat vis;
-    cv::cvtColor(mask, vis, cv::COLOR_GRAY2BGR);
-    cv::circle(vis, start_px.value(), 4, cv::Scalar(0, 0, 255), -1);
-    auto out_msg = cv_bridge::CvImage(msg->header, "bgr8", vis).toImageMsg();
+  // Optional debug visualization: publish enhanced visualization
+  if (debug_ && !debug_vis.empty()) {
+    auto out_msg = cv_bridge::CvImage(msg->header, "bgr8", debug_vis).toImageMsg();
     debug_pub_->publish(*out_msg);
+    RCLCPP_DEBUG(this->get_logger(), "Published debug visualization to %s",
+                 debug_topic_.c_str());
   }
 }
 
