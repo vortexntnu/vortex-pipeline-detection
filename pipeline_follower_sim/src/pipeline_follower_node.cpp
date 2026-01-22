@@ -130,7 +130,7 @@ public:
       std::bind(&PipelineFollowerNode::poseCb, this, std::placeholders::_1)
     );
 
-    client_ = this->create_client<vortex_msgs::srv::SendWaypoints>("/send_waypoints");
+    client_ = this->create_client<vortex_msgs::srv::SendWaypoints>("/orca/waypoint_addition");
 
     timer_ = this->create_wall_timer(
       std::chrono::duration<double>(1.0 / send_rate_hz_),
