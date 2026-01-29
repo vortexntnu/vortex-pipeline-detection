@@ -14,7 +14,7 @@ def generate_launch_description():
 
                 # Preprocessing
                 {'binary_threshold': 200},
-                {'min_pixels': 200},
+                {'min_pixels': 250},
 
                 # IRLS
                 {'max_irls_iters': 30},
