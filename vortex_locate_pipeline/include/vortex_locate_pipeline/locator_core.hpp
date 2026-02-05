@@ -28,24 +28,15 @@ struct PipelineEndpoints {
 
 class LocatorCore {
 public:
-  // SKELETON-BASED METHOD: Find both pipeline endpoints in binary mask
+  // Find both pipeline endpoints using ConvexHull furthest-points method
   // Returns struct with both endpoints if found
-  // use_skeleton_method: if true, uses skeleton extraction; if false, falls back to bottom-most
   // debug_out: optional debug visualization (nullptr = no debug)
   static std::optional<PipelineEndpoints> findPipelineEndpoints(
-      const cv::Mat &mask,
-      bool use_skeleton_method = true,
-      cv::Mat *debug_out = nullptr);
-
-  // LEGACY FALLBACK: Find bottom-most pixel in largest component
-  // Kept as fallback option for when skeleton method fails
-  // debug_out: optional debug visualization (nullptr = no debug)
-  static std::optional<cv::Point> findStartPixelBottomMost(
       const cv::Mat &mask,
       cv::Mat *debug_out = nullptr);
 
   // BACKWARD COMPATIBLE: Wrapper that returns single pixel
-  // Uses skeleton method and returns first endpoint
+  // Uses ConvexHull method and returns first endpoint
   static std::optional<cv::Point> findStartPixel(
       const cv::Mat &mask,
       cv::Mat *debug_out = nullptr);
@@ -61,9 +52,6 @@ public:
       const CameraIntrinsics &intrinsics,
       bool apply_undistortion = true);
 
-  // Legacy depth-based backprojection (kept for compatibility)
-  static cv::Point3d backproject(int u, int v, double z,
-                                 const CameraIntrinsics &intrinsics);
 
 private:
   // Find two points furthest apart in binary mask using ConvexHull
@@ -71,11 +59,6 @@ private:
   static std::optional<std::pair<cv::Point, cv::Point>>
       findFurthestPoints(const cv::Mat &binary);
 
-  // Extract 1-pixel-wide skeleton from binary mask (DEPRECATED - replaced by ConvexHull)
-  static cv::Mat extractSkeleton(const cv::Mat &binary);
-
-  // Find all endpoints in skeleton (pixels with exactly 1 neighbor) (DEPRECATED)
-  static std::vector<cv::Point> findSkeletonEndpoints(const cv::Mat &skeleton);
 
   // Undistort a single pixel using camera distortion model
   // Returns undistorted pixel coordinates

@@ -8,97 +8,6 @@
 
 namespace vortex_locate_pipeline {
 
-// ============================================================================
-// LEGACY FALLBACK METHOD: Bottom-most pixel detection
-// ============================================================================
-
-std::optional<cv::Point> LocatorCore::findStartPixelBottomMost(
-    const cv::Mat &mask, cv::Mat *debug_out) {
-    if (mask.empty()) return std::nullopt;
-
-    // 1. MORPHOLOGY: Clean underwater segmentation artifacts
-    cv::Mat clean_mask;
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
-    cv::morphologyEx(mask, clean_mask, cv::MORPH_CLOSE, kernel);
-    cv::morphologyEx(clean_mask, clean_mask, cv::MORPH_OPEN, kernel);
-
-    // 2. CONNECTED COMPONENTS: Fast isolation of main pipe
-    cv::Mat labels, stats, centroids;
-    int numComponents = cv::connectedComponentsWithStats(clean_mask, labels, stats, centroids);
-
-    std::cout << "[DEBUG BOTTOM-MOST] Found " << numComponents - 1 << " components in mask" << std::endl;
-
-    if (numComponents <= 1) return std::nullopt;
-
-    // Find largest component
-    int largestIdx = 1;
-    int largestArea = stats.at<int>(1, cv::CC_STAT_AREA);
-    for (int i = 2; i < numComponents; i++) {
-        int area = stats.at<int>(i, cv::CC_STAT_AREA);
-        if (area > largestArea) {
-            largestArea = area;
-            largestIdx = i;
-        }
-    }
-
-    std::cout << "[DEBUG BOTTOM-MOST] Largest component area: " << largestArea << " pixels" << std::endl;
-
-    // Create binary mask of main pipe only
-    cv::Mat pipeMask = (labels == largestIdx);
-
-    // 3. FIND BOTTOMMOST PIXELS: Get all pixels at maximum Y coordinate
-    int maxY = -1;
-    std::vector<cv::Point> bottomPixels;
-
-    for (int y = 0; y < pipeMask.rows; y++) {
-        for (int x = 0; x < pipeMask.cols; x++) {
-            if (pipeMask.at<uchar>(y, x) > 0) {
-                if (y > maxY) {
-                    maxY = y;
-                    bottomPixels.clear();
-                    bottomPixels.push_back(cv::Point(x, y));
-                } else if (y == maxY) {
-                    bottomPixels.push_back(cv::Point(x, y));
-                }
-            }
-        }
-    }
-
-    if (bottomPixels.empty()) {
-        std::cout << "[DEBUG BOTTOM-MOST] No pixels found in pipeline mask" << std::endl;
-        return std::nullopt;
-    }
-
-    // 4. AVERAGE POSITION: If multiple pixels at bottom, take their centroid
-    int sumX = 0;
-    for (const auto& pt : bottomPixels) {
-        sumX += pt.x;
-    }
-    int cx = sumX / bottomPixels.size();
-
-    cv::Point startPixel(cx, maxY);
-
-    std::cout << "[DEBUG BOTTOM-MOST] Found " << bottomPixels.size()
-              << " pixels at bottom row (y=" << maxY << ")" << std::endl;
-    std::cout << "[DEBUG BOTTOM-MOST] Start pixel (averaged) at ("
-              << startPixel.x << ", " << startPixel.y << ")" << std::endl;
-
-    // CREATE DEBUG VISUALIZATION (if requested)
-    if (debug_out != nullptr) {
-        cv::cvtColor(pipeMask, *debug_out, cv::COLOR_GRAY2BGR);
-
-        // Highlight all bottommost pixels in green
-        for (const auto& pt : bottomPixels) {
-            cv::circle(*debug_out, pt, 2, cv::Scalar(0, 255, 0), -1);
-        }
-
-        // Mark computed start pixel (average of bottommost) with large red circle
-        cv::circle(*debug_out, startPixel, 8, cv::Scalar(0, 0, 255), -1);
-        cv::circle(*debug_out, startPixel, 10, cv::Scalar(255, 255, 255), 2);  // White outline
-    }
-
-    return startPixel;
-}
 
 // ============================================================================
 // FURTHEST POINTS: Find two points furthest apart using ConvexHull
@@ -164,100 +73,15 @@ LocatorCore::findFurthestPoints(const cv::Mat &binary) {
     return std::make_pair(pt1, pt2);
 }
 
-// ============================================================================
-// SKELETON EXTRACTION: Morphological thinning to 1-pixel centerline (DEPRECATED)
-// ============================================================================
-
-cv::Mat LocatorCore::extractSkeleton(const cv::Mat &binary) {
-    // Morphological skeleton using iterative erosion
-    // See: https://homepages.inf.ed.ac.uk/rbf/HIPR2/skeleton.htm
-
-    cv::Mat skeleton = cv::Mat::zeros(binary.size(), CV_8U);
-    cv::Mat temp;
-    binary.copyTo(temp);
-    cv::Mat eroded, opening;
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3));
-
-    int iteration = 0;
-    while (true) {
-        cv::erode(temp, eroded, element);
-        cv::morphologyEx(eroded, opening, cv::MORPH_OPEN, element);
-        cv::subtract(temp, opening, opening);
-        cv::bitwise_or(skeleton, opening, skeleton);
-        eroded.copyTo(temp);
-
-        if (cv::countNonZero(temp) == 0) {
-            break;
-        }
-
-        iteration++;
-        if (iteration > 100) {  // Safety limit
-            std::cout << "[WARN] Skeleton extraction hit iteration limit" << std::endl;
-            break;
-        }
-    }
-
-    std::cout << "[DEBUG SKELETON] Extraction completed in " << iteration << " iterations" << std::endl;
-
-    return skeleton;
-}
 
 // ============================================================================
-// ENDPOINT DETECTION: Find skeleton endpoints (pixels with exactly 1 neighbor)
-// ============================================================================
-
-std::vector<cv::Point> LocatorCore::findSkeletonEndpoints(const cv::Mat &skeleton) {
-    std::vector<cv::Point> endpoints;
-
-    // Scan through skeleton, count 8-connected neighbors
-    for (int y = 1; y < skeleton.rows - 1; y++) {
-        for (int x = 1; x < skeleton.cols - 1; x++) {
-            if (skeleton.at<uchar>(y, x) == 0) continue;
-
-            // Count 8-connected neighbors
-            int neighbors = 0;
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (dx == 0 && dy == 0) continue;
-                    if (skeleton.at<uchar>(y + dy, x + dx) > 0) {
-                        neighbors++;
-                    }
-                }
-            }
-
-            // Endpoint has exactly 1 neighbor
-            if (neighbors == 1) {
-                endpoints.push_back(cv::Point(x, y));
-            }
-        }
-    }
-
-    std::cout << "[DEBUG SKELETON] Found " << endpoints.size() << " endpoints" << std::endl;
-
-    return endpoints;
-}
-
-// ============================================================================
-// SKELETON-BASED ENDPOINT DETECTION
+// CONVEXHULL-BASED ENDPOINT DETECTION
 // ============================================================================
 
 std::optional<PipelineEndpoints> LocatorCore::findPipelineEndpoints(
-    const cv::Mat &mask, bool use_skeleton_method, cv::Mat *debug_out) {
+    const cv::Mat &mask, cv::Mat *debug_out) {
 
     if (mask.empty()) return std::nullopt;
-
-    // If skeleton method disabled, fall back to bottom-most
-    if (!use_skeleton_method) {
-        std::cout << "[INFO] Skeleton method disabled, using bottom-most fallback" << std::endl;
-        auto bottom_pixel = findStartPixelBottomMost(mask, debug_out);
-        if (!bottom_pixel) return std::nullopt;
-
-        PipelineEndpoints result;
-        result.endpoint1 = *bottom_pixel;
-        result.endpoint2 = *bottom_pixel;
-        result.found_both = false;
-        return result;
-    }
 
     // 1. MORPHOLOGY: Clean mask
     cv::Mat clean_mask;
@@ -270,7 +94,7 @@ std::optional<PipelineEndpoints> LocatorCore::findPipelineEndpoints(
     int numComponents = cv::connectedComponentsWithStats(clean_mask, labels, stats, centroids);
 
     if (numComponents <= 1) {
-        std::cout << "[DEBUG SKELETON] No components found" << std::endl;
+        std::cout << "[DEBUG CONVEXHULL] No components found" << std::endl;
         return std::nullopt;
     }
 
@@ -292,15 +116,8 @@ std::optional<PipelineEndpoints> LocatorCore::findPipelineEndpoints(
     auto furthest = findFurthestPoints(pipeMask);
 
     if (!furthest) {
-        std::cout << "[WARN] ConvexHull failed to find endpoints, falling back to bottom-most" << std::endl;
-        auto bottom_pixel = findStartPixelBottomMost(mask, debug_out);
-        if (!bottom_pixel) return std::nullopt;
-
-        PipelineEndpoints result;
-        result.endpoint1 = *bottom_pixel;
-        result.endpoint2 = *bottom_pixel;
-        result.found_both = false;
-        return result;
+        std::cout << "[WARN] ConvexHull failed to find endpoints" << std::endl;
+        return std::nullopt;
     }
 
     // Success - have both endpoints from ConvexHull
@@ -349,8 +166,8 @@ std::optional<PipelineEndpoints> LocatorCore::findPipelineEndpoints(
 std::optional<cv::Point> LocatorCore::findStartPixel(
     const cv::Mat &mask, cv::Mat *debug_out) {
 
-    // Use skeleton method by default
-    auto endpoints = findPipelineEndpoints(mask, true, debug_out);
+    // Use ConvexHull method
+    auto endpoints = findPipelineEndpoints(mask, debug_out);
     if (!endpoints) return std::nullopt;
 
     // Return first endpoint for backward compatibility
@@ -436,19 +253,5 @@ cv::Point3d LocatorCore::backprojectGroundPlane(
 // LEGACY DEPTH-BASED BACKPROJECTION (kept for compatibility)
 // ============================================================================
 
-cv::Point3d LocatorCore::backproject(int u, int v, double z,
-                                     const CameraIntrinsics &intrinsics) {
-    // Handle invalid depth
-    if (z <= 0.0 || std::isnan(z) || std::isinf(z)) {
-        return cv::Point3d(0, 0, 0);
-    }
-
-    // Standard pinhole camera model
-    double X = (u - intrinsics.cx) * z / intrinsics.fx;
-    double Y = (v - intrinsics.cy) * z / intrinsics.fy;
-    double Z = z;
-
-    return cv::Point3d(X, Y, Z);
-}
 
 }  // namespace vortex_locate_pipeline

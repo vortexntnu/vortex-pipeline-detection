@@ -12,7 +12,6 @@ PipelineLocatorNode::PipelineLocatorNode(const rclcpp::NodeOptions &options)
 
   // Load topic parameters
   mask_topic_ = this->declare_parameter<std::string>("mask_topic");
-  depth_topic_ = this->declare_parameter<std::string>("depth_topic", "/unused");  // Legacy
   camera_info_topic_ = this->declare_parameter<std::string>("camera_info_topic");
   dvl_altitude_topic_ = this->declare_parameter<std::string>("dvl_altitude_topic");
   publish_topic_ = this->declare_parameter<std::string>("publish_topic");
@@ -20,7 +19,6 @@ PipelineLocatorNode::PipelineLocatorNode(const rclcpp::NodeOptions &options)
 
   // Load algorithm config parameters
   debug_ = this->declare_parameter<bool>("debug", false);
-  use_skeleton_method_ = this->declare_parameter<bool>("use_skeleton_method", true);
   enable_triangulation_ = this->declare_parameter<bool>("enable_triangulation", false);
   max_observations_ = this->declare_parameter<int>("max_observations", 50);
   min_observations_for_triangulation_ = this->declare_parameter<int>("min_observations_for_triangulation", 5);
@@ -31,10 +29,6 @@ PipelineLocatorNode::PipelineLocatorNode(const rclcpp::NodeOptions &options)
   mask_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
       mask_topic_, qos,
       std::bind(&PipelineLocatorNode::maskCallback, this, _1));
-
-  depth_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-      depth_topic_, qos,
-      std::bind(&PipelineLocatorNode::depthCallback, this, _1));
 
   caminfo_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
       camera_info_topic_, rclcpp::QoS(10),
@@ -53,7 +47,6 @@ PipelineLocatorNode::PipelineLocatorNode(const rclcpp::NodeOptions &options)
   }
 
   RCLCPP_INFO(this->get_logger(), "Pipeline Locator node started");
-  RCLCPP_INFO(this->get_logger(), "  Skeleton method: %s", use_skeleton_method_ ? "enabled" : "disabled (using fallback)");
   RCLCPP_INFO(this->get_logger(), "  Triangulation: %s", enable_triangulation_ ? "enabled" : "disabled");
   RCLCPP_INFO(this->get_logger(), "  Debug visualization: %s", debug_ ? "enabled" : "disabled");
 }
@@ -73,10 +66,10 @@ void PipelineLocatorNode::maskCallback(
     return;
   }
 
-  // Find pipeline endpoints using skeleton or fallback method
+  // Find pipeline endpoints using ConvexHull method
   cv::Mat debug_vis;
   auto endpoints = LocatorCore::findPipelineEndpoints(
-      mask, use_skeleton_method_, debug_ ? &debug_vis : nullptr);
+      mask, debug_ ? &debug_vis : nullptr);
 
   if (!endpoints) {
     RCLCPP_DEBUG(this->get_logger(), "No pipeline endpoints found in this frame");
@@ -179,12 +172,6 @@ void PipelineLocatorNode::maskCallback(
   }
 }
 
-void PipelineLocatorNode::depthCallback(
-    const sensor_msgs::msg::Image::SharedPtr msg) {
-  // Legacy callback - depth not used with DVL approach
-  std::unique_lock<std::shared_mutex> lock(data_mutex_);
-  last_depth_ = msg;
-}
 
 void PipelineLocatorNode::cameraInfoCallback(
     const sensor_msgs::msg::CameraInfo::SharedPtr msg) {

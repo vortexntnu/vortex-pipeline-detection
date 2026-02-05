@@ -38,7 +38,6 @@ public:
 private:
   // Callbacks
   void maskCallback(const sensor_msgs::msg::Image::SharedPtr msg);
-  void depthCallback(const sensor_msgs::msg::Image::SharedPtr msg);
   void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
   void dvlCallback(const std_msgs::msg::Float64::SharedPtr msg);
 
@@ -57,7 +56,6 @@ private:
 
   // Parameters: Topics
   std::string mask_topic_;
-  std::string depth_topic_;  // Legacy - not used with DVL approach
   std::string camera_info_topic_;
   std::string dvl_altitude_topic_;
   std::string publish_topic_;
@@ -65,21 +63,18 @@ private:
 
   // Parameters: Algorithm config
   bool debug_{false};
-  bool use_skeleton_method_{true};
   bool enable_triangulation_{false};
   size_t max_observations_{50};
   size_t min_observations_for_triangulation_{5};
 
   // ROS interfaces
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_sub_;  // Legacy
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr caminfo_sub_;
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr dvl_sub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
 
   // Shared data (protected by mutex)
-  std::shared_ptr<sensor_msgs::msg::Image> last_depth_;  // Legacy
   std::shared_ptr<sensor_msgs::msg::CameraInfo> last_caminfo_;
   double dvl_altitude_{0.0};
   std::shared_mutex data_mutex_;

@@ -16,9 +16,6 @@ pipeline_locator:
     # Message type: sensor_msgs/CameraInfo
     camera_info_topic: "/cam/camera_info"
 
-    # Legacy depth topic (not used with DVL approach, kept for compatibility)
-    depth_topic: "/unused"
-
     # ========================================================================
     # OUTPUT TOPICS
     # ========================================================================
@@ -29,7 +26,7 @@ pipeline_locator:
     # Orientation: Identity quaternion (point has no orientation)
     publish_topic: "/pipeline/start_point_3d"
 
-    # Debug visualization - shows skeleton, endpoints, and selected point
+    # Debug visualization - shows ConvexHull endpoints and selected point
     # Message type: sensor_msgs/Image (BGR8)
     # Only published if debug: true
     debug_topic: "/pipeline/debug_start_point"
@@ -38,20 +35,10 @@ pipeline_locator:
     # ALGORITHM CONFIGURATION
     # ========================================================================
 
-    # Enable debug visualization (skeleton, endpoints, 3D coordinates overlay)
+    # Enable debug visualization (endpoints, 3D coordinates overlay)
     # When true, publishes debug images to debug_topic
     # Adds ~5-10ms processing time for visualization
     debug: true
-
-    # Use skeleton-based endpoint detection
-    # true: Extract 1-pixel skeleton, find endpoints with neighbor counting
-    #       More robust to rotation, finds both pipeline ends
-    #       Runtime: O(n*k) where k~5-20, roughly 10-50ms for 640x480
-    # false: Use bottom-most pixel fallback (legacy method)
-    #        Faster O(n), but fails under rotation
-    #        Runtime: ~5ms for 640x480
-    # Recommendation: Keep true unless performance is critical
-    use_skeleton_method: true
 
     # ========================================================================
     # TRIANGULATION (Future Feature - Currently Disabled)
@@ -89,10 +76,10 @@ pipeline_locator:
     # - Important for wide-angle cameras (FOV > 90°)
     # - For narrow FOV (<60°), distortion impact is minor
     #
-    # 3D Origin Selection:
+    # Endpoint Detection:
+    # - Uses ConvexHull to find two furthest points in the pipeline mask
     # - Both endpoints are backprojected to 3D
     # - Endpoint closest to 3D origin (0,0,0) is selected as pipeline start
-    # - Robust to camera rotation (unlike bottom-most pixel approach)
     #
     # Triangulation (Future):
     # - Will improve accuracy by combining multiple viewpoints
