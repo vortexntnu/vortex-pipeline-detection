@@ -45,7 +45,7 @@ public:
   // altitude: DVL height above ground (meters, positive value)
   // intrinsics: camera calibration parameters
   // apply_undistortion: if true and intrinsics.has_distortion, undistort pixel first
-  // Returns 3D point in camera frame (Z is negative = below camera)
+  // Returns 3D point in camera frame (X=right, Y=down/altitude, Z=forward)
   static cv::Point3d backprojectGroundPlane(
       int u, int v,
       double altitude,

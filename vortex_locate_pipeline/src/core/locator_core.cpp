@@ -226,24 +226,29 @@ cv::Point3d LocatorCore::backprojectGroundPlane(
     }
 
     // Compute ray direction from camera through pixel
-    // Normalized ray: (ray_x, ray_y, 1)
+    // Camera frame convention: X=right, Y=down, Z=forward
     double ray_x = (pixel.x - intrinsics.cx) / intrinsics.fx;
     double ray_y = (pixel.y - intrinsics.cy) / intrinsics.fy;
     double ray_z = 1.0;
 
-    // Intersect ray with ground plane at Z = -altitude
+    // Intersect ray with ground plane at Y = altitude (downward from camera)
     // Ray equation: P = t * (ray_x, ray_y, ray_z)
-    // Ground plane: Z = -altitude
-    // Solve for t: t * ray_z = -altitude => t = -altitude / ray_z
-    double t = -altitude / ray_z;
+    // Ground plane: Y = altitude
+    // Solve for t: t * ray_y = altitude => t = altitude / ray_y
+    if (std::abs(ray_y) < 1e-6) {
+        std::cout << "[WARN] Ray nearly parallel to ground plane (ray_y ≈ 0)" << std::endl;
+        return cv::Point3d(0, 0, 0);
+    }
+
+    double t = altitude / ray_y;
 
     // 3D point on ground in camera frame
     double X = ray_x * t;
-    double Y = ray_y * t;
-    double Z = -altitude;
+    double Y = altitude;  // On the ground plane
+    double Z = ray_z * t;  // Forward distance from camera
 
     std::cout << "[DEBUG BACKPROJECT] Pixel (" << u << "," << v
-              << ") + altitude " << altitude << "m => 3D ("
+              << ") + altitude " << altitude << "m => Camera 3D ("
               << X << "," << Y << "," << Z << ")" << std::endl;
 
     return cv::Point3d(X, Y, Z);
