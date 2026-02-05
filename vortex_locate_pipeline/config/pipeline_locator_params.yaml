@@ -1,9 +1,102 @@
 pipeline_locator:
   ros__parameters:
-    mask_topic: "/pipeline/camera/segmentation_mask"
-    depth_topic: "/unused"
-    camera_info_topic: "/camera/camera_info"
-    publish_topic: "/unused2"
+    # ========================================================================
+    # INPUT TOPICS
+    # ========================================================================
 
-    debug: True
+    # Segmentation mask from YOLO or other detector (binary mono8 image)
+    mask_topic: "/pipeline/camera/segmentation_mask"
+
+    # DVL altitude topic - provides height above ground in meters
+    # Used for 3D backprojection with flat ground plane assumption
+    # Message type: std_msgs/Float64
+    dvl_altitude_topic: "/dvl/altitude"
+
+    # Camera intrinsics - provides fx, fy, cx, cy and distortion coefficients
+    # Message type: sensor_msgs/CameraInfo
+    camera_info_topic: "/cam/camera_info"
+
+    # Legacy depth topic (not used with DVL approach, kept for compatibility)
+    depth_topic: "/unused"
+
+    # ========================================================================
+    # OUTPUT TOPICS
+    # ========================================================================
+
+    # Publishes 3D pose of selected pipeline endpoint in camera frame
+    # Message type: geometry_msgs/PoseStamped
+    # Position: 3D coordinates from DVL + camera backprojection
+    # Orientation: Identity quaternion (point has no orientation)
+    publish_topic: "/pipeline/start_point_3d"
+
+    # Debug visualization - shows skeleton, endpoints, and selected point
+    # Message type: sensor_msgs/Image (BGR8)
+    # Only published if debug: true
     debug_topic: "/pipeline/debug_start_point"
+
+    # ========================================================================
+    # ALGORITHM CONFIGURATION
+    # ========================================================================
+
+    # Enable debug visualization (skeleton, endpoints, 3D coordinates overlay)
+    # When true, publishes debug images to debug_topic
+    # Adds ~5-10ms processing time for visualization
+    debug: true
+
+    # Use skeleton-based endpoint detection
+    # true: Extract 1-pixel skeleton, find endpoints with neighbor counting
+    #       More robust to rotation, finds both pipeline ends
+    #       Runtime: O(n*k) where k~5-20, roughly 10-50ms for 640x480
+    # false: Use bottom-most pixel fallback (legacy method)
+    #        Faster O(n), but fails under rotation
+    #        Runtime: ~5ms for 640x480
+    # Recommendation: Keep true unless performance is critical
+    use_skeleton_method: true
+
+    # ========================================================================
+    # TRIANGULATION (Future Feature - Currently Disabled)
+    # ========================================================================
+
+    # Enable multi-frame triangulation to refine 3D position accuracy
+    # When true, accumulates observations over time and applies RANSAC + averaging
+    # Currently: Infrastructure only, actual triangulation not yet implemented
+    # TODO: Requires camera pose tracking (odometry/tf subscription)
+    enable_triangulation: false
+
+    # Maximum number of observations to keep in buffer
+    # Older observations are discarded when buffer exceeds this size
+    # Larger buffer = more data for triangulation, but more memory
+    # Recommendation: 50-100 for moving drone, 20-30 for stationary
+    max_observations: 50
+
+    # Minimum observations required before attempting triangulation
+    # 3 is mathematical minimum, but 5-10 gives better accuracy
+    # More observations allow RANSAC to effectively filter outliers
+    # Must be <= max_observations
+    min_observations_for_triangulation: 5
+
+    # ========================================================================
+    # NOTES
+    # ========================================================================
+    #
+    # DVL Altitude:
+    # - Must be positive value in meters (height above ground)
+    # - Used to compute depth via flat ground plane assumption
+    # - If altitude unavailable, node falls back to 2D endpoint detection
+    #
+    # Camera Distortion:
+    # - Automatically undistorts pixels if CameraInfo contains non-zero D coefficients
+    # - Important for wide-angle cameras (FOV > 90°)
+    # - For narrow FOV (<60°), distortion impact is minor
+    #
+    # 3D Origin Selection:
+    # - Both endpoints are backprojected to 3D
+    # - Endpoint closest to 3D origin (0,0,0) is selected as pipeline start
+    # - Robust to camera rotation (unlike bottom-most pixel approach)
+    #
+    # Triangulation (Future):
+    # - Will improve accuracy by combining multiple viewpoints
+    # - Requires camera motion and odometry/tf
+    # - Uses RANSAC to reject outlier observations
+    # - Can optionally add Kalman filter for temporal smoothing
+    # - Publishes PoseWithCovarianceStamped with uncertainty estimates
