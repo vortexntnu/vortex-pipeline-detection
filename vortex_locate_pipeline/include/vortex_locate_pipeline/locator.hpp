@@ -82,7 +82,6 @@ private:
   std::shared_ptr<sensor_msgs::msg::Image> last_depth_;  // Legacy
   std::shared_ptr<sensor_msgs::msg::CameraInfo> last_caminfo_;
   double dvl_altitude_{0.0};
-  rclcpp::Time dvl_timestamp_;
   std::shared_mutex data_mutex_;
 
   // Triangulation infrastructure

@@ -100,54 +100,39 @@ void PipelineLocatorNode::maskCallback(
 
     // Check if we have DVL altitude and camera info
     if (dvl_altitude_ > 0.0 && last_caminfo_) {
-      // Verify timestamps are recent (within 100ms)
-      auto mask_time = rclcpp::Time(msg->header.stamp);
-      auto dvl_age = (mask_time - dvl_timestamp_).seconds();
-      auto caminfo_age = (mask_time - rclcpp::Time(last_caminfo_->header.stamp)).seconds();
+      // Extract camera intrinsics
+      CameraIntrinsics intrinsics = extractIntrinsics(last_caminfo_);
 
-      if (std::abs(dvl_age) < 0.1 && std::abs(caminfo_age) < 0.1) {
-        // Extract camera intrinsics
-        CameraIntrinsics intrinsics = extractIntrinsics(last_caminfo_);
+      // Select closest endpoint to 3D origin (returns both pixel AND 3D point)
+      auto selected_endpoint = selectClosestEndpointTo3DOrigin(*endpoints, dvl_altitude_, intrinsics);
 
-        // Select closest endpoint to 3D origin (returns both pixel AND 3D point)
-        auto selected_endpoint = selectClosestEndpointTo3DOrigin(*endpoints, dvl_altitude_, intrinsics);
+      if (selected_endpoint) {
+        // Extract pixel and already-computed 3D point (no redundant backproject!)
+        selected_pixel = selected_endpoint->pixel;
+        selected_3d = selected_endpoint->point_3d;
 
-        if (selected_endpoint) {
-          // Extract pixel and already-computed 3D point (no redundant backproject!)
-          selected_pixel = selected_endpoint->pixel;
-          selected_3d = selected_endpoint->point_3d;
+        RCLCPP_INFO(this->get_logger(),
+            "Selected endpoint at pixel (%d, %d) -> 3D (%.3f, %.3f, %.3f) in frame %s",
+            selected_pixel->x, selected_pixel->y,
+            selected_3d->x, selected_3d->y, selected_3d->z,
+            intrinsics.frame_id.c_str());
 
-          RCLCPP_INFO(this->get_logger(),
-              "Selected endpoint at pixel (%d, %d) -> 3D (%.3f, %.3f, %.3f) in frame %s",
-              selected_pixel->x, selected_pixel->y,
-              selected_3d->x, selected_3d->y, selected_3d->z,
-              intrinsics.frame_id.c_str());
+        // Publish 3D pose
+        geometry_msgs::msg::PoseStamped pose_msg;
+        pose_msg.header.stamp = msg->header.stamp;
+        pose_msg.header.frame_id = intrinsics.frame_id;
+        pose_msg.pose.position.x = selected_3d->x;
+        pose_msg.pose.position.y = selected_3d->y;
+        pose_msg.pose.position.z = selected_3d->z;
+        pose_msg.pose.orientation.w = 1.0;  // Identity (no orientation, just a point)
 
-          // Publish 3D pose
-          geometry_msgs::msg::PoseStamped pose_msg;
-          pose_msg.header.stamp = msg->header.stamp;
-          pose_msg.header.frame_id = intrinsics.frame_id;
-          pose_msg.pose.position.x = selected_3d->x;
-          pose_msg.pose.position.y = selected_3d->y;
-          pose_msg.pose.position.z = selected_3d->z;
-          pose_msg.pose.orientation.w = 1.0;  // Identity (no orientation, just a point)
+        pose_pub_->publish(pose_msg);
 
-          pose_pub_->publish(pose_msg);
-
-          // Add to triangulation buffer if enabled
-          if (enable_triangulation_) {
-            addObservation(*selected_pixel, *selected_3d, mask_time,
-                          intrinsics.frame_id, dvl_altitude_);
-          }
-        }
-      } else {
-        if (std::abs(dvl_age) >= 0.1) {
-          RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-              "DVL data too old: %.3f s difference", std::abs(dvl_age));
-        }
-        if (std::abs(caminfo_age) >= 0.1) {
-          RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-              "CameraInfo too old: %.3f s difference", std::abs(caminfo_age));
+        // Add to triangulation buffer if enabled
+        if (enable_triangulation_) {
+          auto mask_time = rclcpp::Time(msg->header.stamp);
+          addObservation(*selected_pixel, *selected_3d, mask_time,
+                        intrinsics.frame_id, dvl_altitude_);
         }
       }
     } else {
@@ -204,15 +189,21 @@ void PipelineLocatorNode::depthCallback(
 void PipelineLocatorNode::cameraInfoCallback(
     const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
   std::unique_lock<std::shared_mutex> lock(data_mutex_);
-  last_caminfo_ = msg;
+
+  // Store camera info (it's static and doesn't change)
+  if (!last_caminfo_) {
+    last_caminfo_ = msg;
+    RCLCPP_INFO(this->get_logger(), "Received camera info, unsubscribing (static data)");
+
+    // Unsubscribe since camera info doesn't change
+    caminfo_sub_.reset();
+  }
 }
 
 void PipelineLocatorNode::dvlCallback(
     const std_msgs::msg::Float64::SharedPtr msg) {
   std::unique_lock<std::shared_mutex> lock(data_mutex_);
   dvl_altitude_ = msg->data;
-  dvl_timestamp_ = this->now();
-
   RCLCPP_DEBUG(this->get_logger(), "Received DVL altitude: %.3f m", dvl_altitude_);
 }
 
