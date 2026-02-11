@@ -8,6 +8,13 @@ pipeline_localizer:
     # Output topics
     publish_topic: "/pipeline/start_point_3d"
 
+    # Visualization (debug)
+    enable_debug_image: true
+    enable_3d_markers: false
+    debug_input_image_topic: "/pipeline/camera/segmentation_mask"
+    debug_output_image_topic: "/pipeline/debug/localization_overlay"
+    marker_topic: "/pipeline/debug/markers"
+
     # Future triangulation parameters (not implemented yet)
     enable_triangulation: false
     max_observations: 50

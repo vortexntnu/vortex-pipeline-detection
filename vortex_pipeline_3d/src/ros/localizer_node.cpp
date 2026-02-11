@@ -9,6 +9,10 @@ LocalizerNode::LocalizerNode(const rclcpp::NodeOptions &options)
 
   auto qos = rclcpp::QoS(1).best_effort();
 
+  // Read visualization parameters
+  enable_debug_image_ = this->declare_parameter<bool>("enable_debug_image", false);
+  enable_3d_markers_ = this->declare_parameter<bool>("enable_3d_markers", false);
+
   // Subscriptions
   endpoints_sub_ = this->create_subscription<vortex_msgs::msg::Point2DArray>(
       "/pipeline/endpoints", qos,
@@ -22,9 +26,43 @@ LocalizerNode::LocalizerNode(const rclcpp::NodeOptions &options)
       "/dvl/altitude", qos,
       std::bind(&LocalizerNode::dvlCallback, this, _1));
 
+  odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+      "/orca/odom", qos,
+      std::bind(&LocalizerNode::odomCallback, this, _1));
+
   // Publishers
   pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
       "/pipeline/start_point_3d", 10);
+
+  // Create visualizers if enabled
+  if (enable_debug_image_) {
+    auto input_image_topic = this->declare_parameter<std::string>(
+        "debug_input_image_topic", "/cam/image_color");
+    auto output_image_topic = this->declare_parameter<std::string>(
+        "debug_output_image_topic", "/pipeline/debug/localization_overlay");
+
+    image_viz_ = std::make_unique<ImageOverlayVisualizer>(
+        this, input_image_topic, output_image_topic);
+
+    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+        input_image_topic, rclcpp::QoS(1).best_effort(),
+        [this](const sensor_msgs::msg::Image::SharedPtr msg) {
+          std::unique_lock<std::shared_mutex> lock(data_mutex_);
+          last_image_ = msg;
+        });
+
+    RCLCPP_INFO(this->get_logger(), "Debug image visualization enabled");
+  }
+
+  if (enable_3d_markers_) {
+    auto marker_topic = this->declare_parameter<std::string>(
+        "marker_topic", "/pipeline/debug/markers");
+
+    marker_viz_ = std::make_unique<MarkerPublisher>(
+        this, marker_topic, "camera_frame");
+
+    RCLCPP_INFO(this->get_logger(), "3D marker visualization enabled");
+  }
 
   RCLCPP_INFO(this->get_logger(), "Pipeline 3D localizer node started");
 }
@@ -59,6 +97,26 @@ void LocalizerNode::endpointsCallback(
   // Extract camera intrinsics
   CameraIntrinsics intrinsics = extractIntrinsics(last_caminfo_);
 
+  // Check if we have valid pitch data
+  if (std::abs(vehicle_pitch_) < 0.01) {  // Less than ~0.5 degrees
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+        "Vehicle pitch very small (%.2f deg) - may not see ground with horizontal camera",
+        vehicle_pitch_ * 180.0 / M_PI);
+  }
+
+  // Backproject both endpoints to 3D
+  cv::Point3d pt1_3d = PipelineGeometry::backprojectGroundPlane(
+      static_cast<int>(msg->points[0].x),
+      static_cast<int>(msg->points[0].y),
+      dvl_altitude_, intrinsics, vehicle_pitch_, true);
+
+  cv::Point3d pt2_3d = PipelineGeometry::backprojectGroundPlane(
+      static_cast<int>(msg->points[1].x),
+      static_cast<int>(msg->points[1].y),
+      dvl_altitude_, intrinsics, vehicle_pitch_, true);
+
+  std::vector<cv::Point3d> endpoints_3d = {pt1_3d, pt2_3d};
+
   // Select closest endpoint to 3D origin
   cv::Point3d selected_3d = selectClosestEndpointTo3DOrigin(
       *msg, dvl_altitude_, intrinsics);
@@ -78,6 +136,22 @@ void LocalizerNode::endpointsCallback(
       "Published 3D pose: (%.3f, %.3f, %.3f) in frame %s",
       selected_3d.x, selected_3d.y, selected_3d.z,
       intrinsics.frame_id.c_str());
+
+  // Visualization (if enabled)
+  if (enable_debug_image_ && image_viz_ && last_image_) {
+    std::vector<cv::Point2d> endpoints_2d = {
+      cv::Point2d(msg->points[0].x, msg->points[0].y),
+      cv::Point2d(msg->points[1].x, msg->points[1].y)
+    };
+
+    image_viz_->visualize(
+        last_image_, endpoints_2d, endpoints_3d,
+        selected_3d, intrinsics, dvl_altitude_);
+  }
+
+  if (enable_3d_markers_ && marker_viz_) {
+    marker_viz_->publishEndpoints(endpoints_3d, selected_3d, dvl_altitude_);
+  }
 }
 
 void LocalizerNode::cameraInfoCallback(
@@ -98,6 +172,23 @@ void LocalizerNode::dvlCallback(const std_msgs::msg::Float64::SharedPtr msg) {
   std::unique_lock<std::shared_mutex> lock(data_mutex_);
   dvl_altitude_ = msg->data;
   RCLCPP_DEBUG(this->get_logger(), "Received DVL altitude: %.3f m", dvl_altitude_);
+}
+
+void LocalizerNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+  std::unique_lock<std::shared_mutex> lock(data_mutex_);
+
+  // Extract pitch from quaternion
+  // Using tf2 conversion: pitch = atan2(2*(qw*qy - qz*qx), 1 - 2*(qx^2 + qy^2))
+  const auto& q = msg->pose.pose.orientation;
+  double pitch = std::atan2(
+      2.0 * (q.w * q.y - q.z * q.x),
+      1.0 - 2.0 * (q.x * q.x + q.y * q.y)
+  );
+
+  vehicle_pitch_ = pitch;
+
+  RCLCPP_DEBUG(this->get_logger(),
+      "Vehicle pitch: %.2f deg", pitch * 180.0 / M_PI);
 }
 
 // ============================================================================
@@ -150,16 +241,16 @@ cv::Point3d LocalizerNode::selectClosestEndpointTo3DOrigin(
     double dvl_altitude,
     const CameraIntrinsics& intrinsics) {
 
-  // Backproject both endpoints to 3D
+  // Backproject both endpoints to 3D WITH PITCH
   cv::Point3d pt1_3d = PipelineGeometry::backprojectGroundPlane(
       static_cast<int>(endpoints.points[0].x),
       static_cast<int>(endpoints.points[0].y),
-      dvl_altitude, intrinsics, true);
+      dvl_altitude, intrinsics, vehicle_pitch_, true);
 
   cv::Point3d pt2_3d = PipelineGeometry::backprojectGroundPlane(
       static_cast<int>(endpoints.points[1].x),
       static_cast<int>(endpoints.points[1].y),
-      dvl_altitude, intrinsics, true);
+      dvl_altitude, intrinsics, vehicle_pitch_, true);
 
   // Compute distance to origin (0,0,0)
   double dist1 = std::sqrt(pt1_3d.x * pt1_3d.x + pt1_3d.y * pt1_3d.y + pt1_3d.z * pt1_3d.z);

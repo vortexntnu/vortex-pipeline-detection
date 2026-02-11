@@ -17,8 +17,11 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 # Geometry library (ROS-independent backprojection)
 add_library(pipeline_geometry
@@ -34,10 +37,13 @@ target_link_libraries(pipeline_geometry ${OpenCV_LIBS})
 add_executable(localizer_node
   src/ros/localizer_node.cpp
   src/localizer_node_main.cpp
+  src/visualization/image_overlay.cpp
+  src/visualization/marker_publisher.cpp
 )
 target_link_libraries(localizer_node pipeline_geometry ${OpenCV_LIBS})
 ament_target_dependencies(localizer_node
-  rclcpp sensor_msgs geometry_msgs std_msgs vortex_msgs
+  rclcpp sensor_msgs geometry_msgs std_msgs nav_msgs vortex_msgs
+  cv_bridge visualization_msgs
 )
 
 # Install targets

@@ -22,11 +22,13 @@ class PipelineGeometry {
 public:
   // Backproject pixel to 3D using DVL altitude and flat ground plane
   // altitude: DVL height above ground (meters, positive)
-  // Returns: 3D point in camera frame (X=right, Y=down/altitude, Z=forward)
+  // pitch_angle: Vehicle pitch in radians (positive = nose down)
+  // Returns: 3D point in world frame (X=right, Y=down/altitude, Z=forward)
   static cv::Point3d backprojectGroundPlane(
       int u, int v,
       double altitude,
       const CameraIntrinsics &intrinsics,
+      double pitch_angle,
       bool apply_undistortion = true);
 
 private:

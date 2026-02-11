@@ -44,7 +44,7 @@ cv::Point2f PipelineGeometry::undistortPoint(const cv::Point &pixel,
 
 cv::Point3d PipelineGeometry::backprojectGroundPlane(
     int u, int v, double altitude, const CameraIntrinsics &intrinsics,
-    bool apply_undistortion) {
+    double pitch_angle, bool apply_undistortion) {
 
     // Handle invalid altitude
     if (altitude <= 0.0 || std::isnan(altitude) || std::isinf(altitude)) {
@@ -58,31 +58,62 @@ cv::Point3d PipelineGeometry::backprojectGroundPlane(
         pixel = undistortPoint(cv::Point(u, v), intrinsics);
     }
 
-    // Compute ray direction from camera through pixel
-    // Camera frame convention: X=right, Y=down, Z=forward
-    double ray_x = (pixel.x - intrinsics.cx) / intrinsics.fx;
-    double ray_y = (pixel.y - intrinsics.cy) / intrinsics.fy;
-    double ray_z = 1.0;
+    // Compute ray direction in CAMERA frame
+    // Camera frame: X=right, Y=down, Z=forward
+    double ray_x_cam = (pixel.x - intrinsics.cx) / intrinsics.fx;
+    double ray_y_cam = (pixel.y - intrinsics.cy) / intrinsics.fy;
+    double ray_z_cam = 1.0;
 
-    // Intersect ray with ground plane at Y = altitude (downward from camera)
-    // Ray equation: P = t * (ray_x, ray_y, ray_z)
-    // Ground plane: Y = altitude
-    // Solve for t: t * ray_y = altitude => t = altitude / ray_y
-    if (std::abs(ray_y) < 1e-6) {
-        std::cout << "[WARN] Ray nearly parallel to ground plane (ray_y ≈ 0)" << std::endl;
+    // Normalize ray
+    double norm = std::sqrt(ray_x_cam*ray_x_cam +
+                           ray_y_cam*ray_y_cam +
+                           ray_z_cam*ray_z_cam);
+    ray_x_cam /= norm;
+    ray_y_cam /= norm;
+    ray_z_cam /= norm;
+
+    // Rotate ray from CAMERA frame to WORLD frame using pitch
+    // When vehicle pitches down θ, we apply INVERSE rotation to go camera→world
+    // Rotation matrix R_x(-θ) for camera-to-world transform:
+    // [ 1      0         0    ] [ray_x]
+    // [ 0   cos(θ)   sin(θ) ] [ray_y]
+    // [ 0  -sin(θ)   cos(θ) ] [ray_z]
+
+    double cos_pitch = std::cos(pitch_angle);
+    double sin_pitch = std::sin(pitch_angle);
+
+    double ray_x_world = ray_x_cam;
+    double ray_y_world = cos_pitch * ray_y_cam + sin_pitch * ray_z_cam;
+    double ray_z_world = -sin_pitch * ray_y_cam + cos_pitch * ray_z_cam;
+
+    // Intersect ray with ground plane in WORLD frame
+    // Ground plane: Y_world = altitude (below camera at Y=0)
+    // Ray: P = t * (ray_x_world, ray_y_world, ray_z_world)
+    // Solve: t * ray_y_world = altitude
+
+    if (std::abs(ray_y_world) < 1e-6) {
+        std::cout << "[WARN] Ray nearly parallel to ground plane" << std::endl;
         return cv::Point3d(0, 0, 0);
     }
 
-    double t = altitude / ray_y;
+    if (ray_y_world < 0) {
+        // Ray points upward - won't hit ground below
+        std::cout << "[WARN] Ray points upward (pitch too small or pixel above horizon)"
+                  << std::endl;
+        return cv::Point3d(0, 0, 0);
+    }
 
-    // 3D point on ground in camera frame
-    double X = ray_x * t;
+    double t = altitude / ray_y_world;
+
+    // 3D point on ground in WORLD frame
+    double X = ray_x_world * t;
     double Y = altitude;  // On the ground plane
-    double Z = ray_z * t;  // Forward distance from camera
+    double Z = ray_z_world * t;  // Should now be POSITIVE
 
     std::cout << "[DEBUG BACKPROJECT] Pixel (" << u << "," << v
-              << ") + altitude " << altitude << "m => Camera 3D ("
-              << X << "," << Y << "," << Z << ")" << std::endl;
+              << ") pitch=" << (pitch_angle * 180.0 / M_PI) << "deg"
+              << " => World 3D (" << X << "," << Y << "," << Z << ")"
+              << std::endl;
 
     return cv::Point3d(X, Y, Z);
 }
