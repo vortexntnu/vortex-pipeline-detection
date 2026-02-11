@@ -12,6 +12,7 @@
 #include <cmath> 
 #include <thread>
 #include <chrono>
+#include "std_msgs/msg/float64.hpp"
 
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/point.hpp>
@@ -51,7 +52,7 @@ static double angleBetweenLinesRad(const cv::Point2f& p1, const cv::Point2f& p2,
     double n2 = std::hypot(v2.x, v2.y);
 
     // Degenerate line check
-    if (n1 == 0.0 || n2 == 0.0) return 0.0;
+    if (n1 == 0.0 || n2 == 0.0){ return 0.0;}
 
     double dot = v1.x * v2.x + v1.y * v2.y;
     double cosTheta = dot / (n1 * n2);
@@ -64,40 +65,28 @@ static double angleBetweenLinesRad(const cv::Point2f& p1, const cv::Point2f& p2,
     
 }
 
-
-// Returns (X, Z) on the ground in meters:
-//   X = left/right (camera x axis), Z = forward (camera z axis)
-// Assumes camera is level and camera Y axis points down, ground plane is y = H.
+// Converts pixel coordinates (u, v) to ground-plane meters (X, Y)
+// Camera is assumed to be looking straight down, parallel to ground
 std::optional<cv::Point2d> groundDistanceFromPixel(
     const cv::Point2d& pixel_uv,
-    const cv::Matx33d& K,
-    double H,
-    double* groundDistance_out = nullptr // optional: sqrt(X^2 + Z^2)
+    const cv::Matx33d K,
+    double cameraHeightMeters
 ) {
-    // Invert intrinsics to get a ray direction in camera coordinates
-    const cv::Matx33d Kinv = K.inv();
-    const cv::Vec3d pix_h(pixel_uv.x, pixel_uv.y, 1.0);
-    const cv::Vec3d ray = Kinv * pix_h; // (x_n, y_n, 1) up to scale
+    // Intrinsics
+    double fx = K(0, 0);
+    double fy = K(1, 1);
+    double cx = K(0, 2);
+    double cy = K(1, 2);
 
-    // If ray.y <= 0, ray goes to sky / parallel to ground -> no ground hit
-    const double ry = ray[1];
-    if (ry <= 1e-12) {
-        return std::nullopt;
-    }
-    if (ray[1] < 0.05)  // tune this
-      return std::nullopt;
+    // Normalize pixel coordinates
+    double x_norm = (pixel_uv.x - cx) / fx;
+    double y_norm = (pixel_uv.y - cy) / fy;
 
-    // Intersect p(t)=t*ray with ground plane y = H  (Y points down)
-    const double t = H / ry;
+    // Project onto ground plane (Z = 0)
+    double X = x_norm * cameraHeightMeters;
+    double Y = y_norm * cameraHeightMeters;
 
-    const double X = t * ray[0];
-    const double Z = t * ray[2];
-
-    if (groundDistance_out) {
-        *groundDistance_out = std::sqrt(X * X + Z * Z);
-    }
-
-    return cv::Point2d(X, Z);
+    return cv::Point2d(X, Y);
 }
 
 
@@ -111,6 +100,7 @@ public:
     // Parameters
     input_topic_lines_ = this->declare_parameter<std::string>("input_topic_lines", "irls_line/lines");
     input_topic_pose_ = this->declare_parameter<std::string>("input_topic_pose", "/orca/odom");
+    input_topic_altitude_ = this->declare_parameter<std::string>("input_topic_altitude", "/dvl/altitude");
     camera_height_ = this->declare_parameter<double>("camera_height", 0.5);
     send_rate_hz_ = this->declare_parameter<double>("send_rate_hz", 0.5);
     camera_placment_x_ = this->declare_parameter<double>("camera_placment_x", 0.4);
@@ -138,6 +128,12 @@ public:
       input_topic_pose_,
       rclcpp::SensorDataQoS(),
       std::bind(&PipelineFollowerNode::poseCb, this, std::placeholders::_1)
+    );
+
+    sub_altitude = this->create_subscription<std_msgs::msg::Float64>(
+      input_topic_altitude_,
+      rclcpp::SensorDataQoS(),
+      std::bind(&PipelineFollowerNode::altitudeCb, this, std::placeholders::_1)
     );
 
     client_ = this->create_client<vortex_msgs::srv::SendWaypoints>("/orca/waypoint_addition");
@@ -185,6 +181,11 @@ private:
     have_pose_ = true;
   }
 
+  void altitudeCb(const std_msgs::msg::Float64::SharedPtr msg)
+  {
+    robot_a_ = msg->data;
+  }
+
 
   void timerTick()
   {
@@ -192,7 +193,7 @@ private:
     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
                        "tick: have_lines=%d have_pose=%d", have_lines_, have_pose_);
 
-    if (!have_lines_ || !have_pose_) return;
+    if (!have_lines_ || !have_pose_){return;}
 
     const bool service_ready = client_->service_is_ready();
     std_msgs::msg::Bool off_msg;
@@ -218,7 +219,7 @@ private:
   }
 
   void sendOrDebugWaypoint(double x, double y, double yaw,
-                           bool overwrite_prior, bool take_priority)
+                           bool overwrite_prior, bool take_priority, uint mode, double switching_threshold)
   {
     // Build the waypoint once (used for both service + debug publish)
     vortex_msgs::msg::Waypoint wp;
@@ -226,7 +227,7 @@ private:
     wp.pose.position.y = y;
     wp.pose.position.z = robot_z_;
     wp.pose.orientation = quatFromYaw(yaw);
-    wp.mode = vortex_msgs::msg::Waypoint::FULL_POSE;
+    wp.mode = mode;
 
     // If service is off, publish debug and return
     if (!client_->service_is_ready())
@@ -240,7 +241,7 @@ private:
     // Otherwise send to service
     auto req = std::make_shared<vortex_msgs::srv::SendWaypoints::Request>();
     req->waypoints = {wp};
-    req->switching_threshold = 1.0;
+    req->switching_threshold = switching_threshold;
     req->overwrite_prior_waypoints = overwrite_prior;
     req->take_priority = take_priority;
 
@@ -249,7 +250,7 @@ private:
       [this, wp](rclcpp::Client<vortex_msgs::srv::SendWaypoints>::SharedFuture future) {
         try {
           auto resp = future.get();
-          RCLCPP_WARN_THROTTLE(this->get_logger(), *get_clock(), 2000, "Sent waypoint: success=%d", resp->success);
+          RCLCPP_WARN(this->get_logger(), "Sent waypoint: success=%d", resp->success);
 
           // If it failed logically, also publish it for debugging
           debug_wp_pub_->publish(wp);
@@ -265,6 +266,7 @@ private:
   // --- 1 line case ---
   void handleSingleLine(const vortex_msgs::msg::LineSegment2D &line)
   {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *get_clock(),  2000,  "starting single line handeling");
     cv::Point2f p1(line.p0.x, line.p0.y);
     cv::Point2f p2(line.p1.x, line.p1.y);
 
@@ -273,18 +275,19 @@ private:
 
     cv::Point2d groundXZ;
     double dist = 0.5;
-    auto point_opt = groundDistanceFromPixel(end, K_, camera_height_, &dist);
-    if (!point_opt) return;
+    auto point_opt = groundDistanceFromPixel(end, K_, robot_a_);
+    if (!point_opt){return;}
 
     const auto &XZ = *point_opt;   // XZ.x = X (left/right), XZ.y = Z (forward)
 
     // Example mapping: world x += forward, world y += left/right
     auto [xr, xy] =rotateXY(XZ.y, XZ.x, robot_yaw_);
+    auto [xc, yc] =rotateXY(camera_placment_x_, 0, robot_yaw_);
 
-    double x_in_meters = robot_x_ + xr - camera_placment_x_;
-    double y_in_meters = robot_y_ + xy;
+    double x_in_meters = robot_x_ + xr + xc;
+    double y_in_meters = robot_y_ + xy + yc;
 
-    sendOrDebugWaypoint(x_in_meters, y_in_meters, robot_yaw_, true, false);
+    sendOrDebugWaypoint(x_in_meters, y_in_meters, robot_yaw_, false, false, vortex_msgs::msg::Waypoint::ONLY_POSITION, 0.3);
 
   }
 
@@ -292,49 +295,54 @@ private:
   void handleTwoLines(const vortex_msgs::msg::LineSegment2D &l1,
                     const vortex_msgs::msg::LineSegment2D &l2)
   {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *get_clock(),  2000,  "starting two lines handeling");
     cv::Point2f p1(l1.p0.x, l1.p0.y), p2(l1.p1.x, l1.p1.y);
     cv::Point2f q1(l2.p0.x, l2.p0.y), q2(l2.p1.x, l2.p1.y);
 
     cv::Point2f cross;
-    if (!findLineIntersection(p1, p2, q1, q2, cross))
+    if (!findLineIntersection(p1, p2, q1, q2, cross)){
+      RCLCPP_WARN(this->get_logger(),  "didnt find intersection");
       return;
-
+    }
     // Keep last 3 intersections to check stability
     cross_history_.push_back(cross);
-    if (cross_history_.size() > 5)
+    if (cross_history_.size() > 3)
+    {
       cross_history_.pop_front();
+    }
 
-    if (cross.y >= 280)
-      handleSingleLine(l1);
-      return;
-
-    if (cross_history_.size() == 5)
+    if (cross_history_.size() == 3)
     {
       double avg_dist = 0.0;
       for (size_t i = 0; i < cross_history_.size() - 1; ++i)
         avg_dist += cv::norm(cross_history_[i] - cross_history_[i + 1]);
       avg_dist /= 2.0;
       
-      if (avg_dist < 10.0)  // pixels threshold for "close proximity"
+      if (avg_dist < 100.0)  // pixels threshold for "close proximity"
       {
         double dist;
-        auto point_opt = groundDistanceFromPixel(cv::Point2d(cross.x, cross.y), K_, camera_height_, &dist);
-        if (!point_opt) return;
+        auto point_opt = groundDistanceFromPixel(cv::Point2d(cross.x, cross.y), K_, robot_a_);
+        auto ray = K_.inv() * cv::Vec3d(cross.x, cross.y, 1.0);
+        if (!point_opt){
+          RCLCPP_WARN(this->get_logger(),  "did not hav point_opt ray.y = %.6f, pixel y = %.1f", ray[1], cross.y);
+          return;
+        }
 
         const auto &XZ = *point_opt;   // XZ.x = X (left/right), XZ.y = Z (forward)
 
-        auto ray = K_.inv() * cv::Vec3d(cross.x, cross.y, 1.0);
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *get_clock(),  2000,  "ray.y = %.6f, pixel y = %.1f", ray[1], cross.y);
+        RCLCPP_WARN(this->get_logger(),  "ray.y = %.6f, pixel y = %.1f", ray[1], cross.y);
 
 
         // Example mapping: world x += forward, world y += left/right
         auto [xr, xy] =rotateXY(XZ.y, XZ.x, robot_yaw_);
+        auto [xc, yc] =rotateXY(camera_placment_x_, 0, robot_yaw_);
 
-        double x_in_meters = robot_x_ + xr - camera_placment_x_;
-        double y_in_meters = robot_y_ + xy;
+        double x_in_meters = robot_x_ + xr + xc;
+        double y_in_meters = robot_y_ + xy + yc;
 
 
-        if (!isNewCorner(x_in_meters, y_in_meters)) {
+        if (!isNewCorner(x_in_meters, y_in_meters))
+        {
           RCLCPP_WARN_THROTTLE(
             this->get_logger(), *get_clock(), 2000,
             "Corner suppressed (too close to previous)"
@@ -348,20 +356,28 @@ private:
         have_last_corner_ = true;
 
         // Publish corner waypoint
-        sendOrDebugWaypoint(x_in_meters, y_in_meters, robot_yaw_, true, true);
-
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        sendOrDebugWaypoint(x_in_meters, y_in_meters, robot_yaw_, true, true, vortex_msgs::msg::Waypoint::ONLY_POSITION, 0.3);
 
         // Angle between lines
         double angle_rad = angleBetweenLinesRad(p1, p2, q1, q2);
         double yaw_rad = robot_yaw_ + angle_rad;
-        sendOrDebugWaypoint(x_in_meters, y_in_meters, yaw_rad, false, true);
+        sendOrDebugWaypoint(x_in_meters, y_in_meters, yaw_rad, false, true, vortex_msgs::msg::Waypoint::ONLY_ORIENTATION, 0.1);
+
+        double forward_dist = 0.5;
+        double xf = x_in_meters + forward_dist * std::cos(yaw_rad);
+        double yf = y_in_meters + forward_dist * std::sin(yaw_rad);
+
+        sendOrDebugWaypoint(xf, yf, yaw_rad, false, true ,vortex_msgs::msg::Waypoint::ONLY_POSITION, 0.3);
+
+
         return;
       }
+      
     }
+    
 
     // Fallback: just use first line’s end
+    RCLCPP_WARN(this->get_logger(),  "did not have a consistent corner, dooing single line");
     handleSingleLine(l1);
   }
 
@@ -373,8 +389,9 @@ private:
       cv::Point2f ab = b - a;
       float abLen2 = ab.dot(ab);
       if (abLen2 < 1e-6f)
+      {
           return cv::norm(p - a); // degenerate segment
-
+      }
       float t = (p - a).dot(ab) / abLen2;
       t = std::max(0.f, std::min(1.f, t));
       cv::Point2f closest = a + t * ab;
@@ -385,14 +402,17 @@ private:
                           const cv::Point2f &q1, const cv::Point2f &q2,
                           cv::Point2f &out)
   {
-      constexpr float MAX_DIST = 0.5f;
+      RCLCPP_WARN(this->get_logger(), "looking for intersection");
+      constexpr float MAX_DIST = 200;
 
       cv::Point2f r = p2 - p1;
       cv::Point2f s = q2 - q1;
 
       float denom = r.x * s.y - r.y * s.x;
-      if (std::fabs(denom) < 1e-6f)
+      if (std::fabs(denom) < 1e-6f){
+          RCLCPP_WARN(this->get_logger(), "parallel or degenerate");
           return false; // parallel or degenerate
+      }
 
       cv::Point2f qp = q1 - p1;
 
@@ -401,12 +421,22 @@ private:
 
       cv::Point2f intersection = p1 + t * r;
 
-      // Reject if intersection is too far from either segment
-      if (pointSegmentDistance(intersection, p1, p2) > MAX_DIST)
-          return false;
-      if (pointSegmentDistance(intersection, q1, q2) > MAX_DIST)
-          return false;
+      RCLCPP_WARN(
+        this->get_logger(),
+        "intersection = (%.1f, %.1f)",
+        intersection.x,
+        intersection.y
+      );
 
+
+      // Reject if intersection is too far from either segment
+      // if (pointSegmentDistance(intersection, p1, p2) > MAX_DIST)
+      // {
+      //   return false;
+      // }
+      // if (pointSegmentDistance(intersection, q1, q2) > MAX_DIST){
+      //   return false; 
+      // }
       out = intersection;
       return true;
   }
@@ -426,6 +456,7 @@ private:
   double send_rate_hz_;
   double camera_placment_x_;
   cv::Matx33d K_;
+  double robot_a_{0.0};
 
   bool have_last_corner_{false};
   double last_corner_x_{0.0};
@@ -446,6 +477,9 @@ private:
   rclcpp::Subscription<vortex_msgs::msg::LineSegment2DArray>::SharedPtr sub_line;
   rclcpp::Client<vortex_msgs::srv::SendWaypoints>::SharedPtr client_;
   rclcpp::TimerBase::SharedPtr timer_;
+
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_altitude;
+  std::string input_topic_altitude_;
 };
 
 // --- main ---

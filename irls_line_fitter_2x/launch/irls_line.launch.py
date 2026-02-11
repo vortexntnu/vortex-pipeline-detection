@@ -17,11 +17,11 @@ def generate_launch_description():
                 {'min_pixels': 250},
 
                 # IRLS
-                {'max_irls_iters': 30},
+                {'max_irls_iters': 20},
                 {'eps_change': 1e-4},
                 {'loss': 'tukey'},         # 'huber' or 'tukey'
-                {'huber_delta': 1.5},
-                {'tukey_c': 1.485},
+                {'huber_delta': 0.5},
+                {'tukey_c': 2.735},
                 {'scale_with_mad': True},
 
                 # Drawing
