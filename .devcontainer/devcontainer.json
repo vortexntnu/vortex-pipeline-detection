@@ -35,7 +35,7 @@
             ]
         }
     },
-    "postCreateCommand": "mkdir -p build && touch build/compile_commands.json",
+    "postCreateCommand": "./scripts/import_dependencies.sh && mkdir -p build && touch build/compile_commands.json",
     "remoteUser": "devuser",
     "workspaceFolder": "/ros2_ws",
     "workspaceMount": "source=${localWorkspaceFolder},target=/ros2_ws,type=bind,consistency=cached",

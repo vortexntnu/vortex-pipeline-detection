@@ -20,7 +20,7 @@ echo "======================================================================"
 echo ""
 
 # ------------------------------------------------------------------------------
-# Run Docker Container
+# Run Docker Container (imports dependencies, then starts interactive shell)
 # ------------------------------------------------------------------------------
 docker run -it --rm \
     --privileged \
@@ -29,4 +29,4 @@ docker run -it --rm \
     -v "$WORKSPACE":/ros2_ws \
     -w /ros2_ws \
     "$IMAGE" \
-    /bin/bash
+    /bin/bash -c "./scripts/import_dependencies.sh && exec bash"
