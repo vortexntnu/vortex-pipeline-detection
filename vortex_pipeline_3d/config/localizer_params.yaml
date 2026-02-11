@@ -1,0 +1,14 @@
+pipeline_localizer:
+  ros__parameters:
+    # Input topics
+    endpoints_topic: "/pipeline/endpoints"
+    dvl_altitude_topic: "/dvl/altitude"
+    camera_info_topic: "/cam/camera_info"
+
+    # Output topics
+    publish_topic: "/pipeline/start_point_3d"
+
+    # Future triangulation parameters (not implemented yet)
+    enable_triangulation: false
+    max_observations: 50
+    min_observations_for_triangulation: 5
