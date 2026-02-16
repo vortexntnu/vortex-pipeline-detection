@@ -3,6 +3,7 @@
 #include "vortex_pipeline_3d/geometry.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <vector>
@@ -35,10 +36,11 @@ public:
    * @brief Visualize endpoints and 3D backprojection on image
    * @param image Camera image to annotate
    * @param endpoints_2d Original 2D endpoint detections
-   * @param endpoints_3d 3D backprojected endpoints
-   * @param selected_3d The selected 3D endpoint (closest to origin)
+   * @param endpoints_3d 3D backprojected endpoints (in world frame)
+   * @param selected_3d The selected 3D endpoint (closest to origin, in world frame)
    * @param intrinsics Camera calibration parameters
    * @param dvl_altitude Current DVL altitude measurement
+   * @param camera_to_world tf2 transform from camera to world frame
    */
   void visualize(
     const sensor_msgs::msg::Image::SharedPtr& image,
@@ -46,16 +48,21 @@ public:
     const std::vector<cv::Point3d>& endpoints_3d,
     const cv::Point3d& selected_3d,
     const CameraIntrinsics& intrinsics,
-    double dvl_altitude);
+    double dvl_altitude,
+    const geometry_msgs::msg::TransformStamped& camera_to_world);
 
 private:
   /**
    * @brief Project 3D point back to image coordinates
-   * @param pt3d 3D point in camera frame
+   * @param pt3d_world 3D point in world frame
    * @param intrinsics Camera calibration parameters
+   * @param camera_to_world Transform from camera to world frame
    * @return 2D pixel coordinates
    */
-  cv::Point2d projectToImage(const cv::Point3d& pt3d, const CameraIntrinsics& intrinsics);
+  cv::Point2d projectToImage(
+    const cv::Point3d& pt3d_world,
+    const CameraIntrinsics& intrinsics,
+    const geometry_msgs::msg::TransformStamped& camera_to_world);
 
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_;
   rclcpp::Node* node_;

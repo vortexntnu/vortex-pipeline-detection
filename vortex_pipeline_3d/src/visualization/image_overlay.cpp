@@ -1,4 +1,8 @@
 #include "vortex_pipeline_3d/visualization/image_overlay.hpp"
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Vector3.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <sstream>
 #include <iomanip>
 
@@ -24,7 +28,8 @@ void ImageOverlayVisualizer::visualize(
     const std::vector<cv::Point3d>& endpoints_3d,
     const cv::Point3d& selected_3d,
     const CameraIntrinsics& intrinsics,
-    double dvl_altitude) {
+    double dvl_altitude,
+    const geometry_msgs::msg::TransformStamped& camera_to_world) {
 
   if (endpoints_2d.size() != 2 || endpoints_3d.size() != 2) {
     RCLCPP_WARN(node_->get_logger(),
@@ -64,7 +69,7 @@ void ImageOverlayVisualizer::visualize(
   std::vector<double> reproj_errors;
 
   for (size_t i = 0; i < endpoints_3d.size(); ++i) {
-    cv::Point2d reprojected = projectToImage(endpoints_3d[i], intrinsics);
+    cv::Point2d reprojected = projectToImage(endpoints_3d[i], intrinsics, camera_to_world);
     reprojected_points.push_back(reprojected);
     cv::circle(img, reprojected, 6, RED, 2);
 
@@ -82,7 +87,7 @@ void ImageOverlayVisualizer::visualize(
   }
 
   // Highlight selected endpoint (yellow circle)
-  cv::Point2d selected_2d = projectToImage(selected_3d, intrinsics);
+  cv::Point2d selected_2d = projectToImage(selected_3d, intrinsics, camera_to_world);
   cv::circle(img, selected_2d, 12, YELLOW, 3);
 
   // ============================================================================
@@ -174,24 +179,38 @@ void ImageOverlayVisualizer::visualize(
 }
 
 cv::Point2d ImageOverlayVisualizer::projectToImage(
-    const cv::Point3d& pt3d,
-    const CameraIntrinsics& intrinsics) {
+    const cv::Point3d& pt3d_world,
+    const CameraIntrinsics& intrinsics,
+    const geometry_msgs::msg::TransformStamped& camera_to_world) {
 
-  // Camera frame: X=right, Y=down, Z=forward
-  // Pinhole camera model: u = fx * (X/Z) + cx, v = fy * (Y/Z) + cy
+  // Transform from WORLD frame to CAMERA frame (inverse transform)
+  tf2::Quaternion quat;
+  tf2::fromMsg(camera_to_world.transform.rotation, quat);
+  tf2::Matrix3x3 rotation_matrix(quat);
+  tf2::Vector3 translation(
+      camera_to_world.transform.translation.x,
+      camera_to_world.transform.translation.y,
+      camera_to_world.transform.translation.z
+  );
 
-  if (pt3d.z <= 0) {
+  // Point in world frame
+  tf2::Vector3 pt_world(pt3d_world.x, pt3d_world.y, pt3d_world.z);
+
+  // Apply inverse transform: p_camera = R^T * (p_world - t)
+  tf2::Vector3 pt_relative = pt_world - translation;
+  tf2::Vector3 pt_cam = rotation_matrix.transpose() * pt_relative;
+
+  // Check if point is in front of camera
+  if (pt_cam.getZ() <= 0) {
     RCLCPP_WARN(node_->get_logger(),
-        "Point behind camera (Z <= 0): %.3f", pt3d.z);
-    return cv::Point2d(-1, -1); // Invalid
+        "Point behind camera (Z <= 0): %.3f", pt_cam.getZ());
+    return cv::Point2d(-1, -1);
   }
 
-  double u = intrinsics.fx * (pt3d.x / pt3d.z) + intrinsics.cx;
-  double v = intrinsics.fy * (pt3d.y / pt3d.z) + intrinsics.cy;
-
-  // Note: This is simplified projection without distortion
-  // For more accuracy, use cv::projectPoints with distortion coefficients
-  // But since we're comparing with undistorted backprojection, this is consistent
+  // Project to image using pinhole model
+  // Camera frame: X=right, Y=down, Z=forward
+  double u = intrinsics.fx * (pt_cam.getX() / pt_cam.getZ()) + intrinsics.cx;
+  double v = intrinsics.fy * (pt_cam.getY() / pt_cam.getZ()) + intrinsics.cy;
 
   return cv::Point2d(u, v);
 }
