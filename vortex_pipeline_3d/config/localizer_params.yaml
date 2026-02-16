@@ -3,17 +3,15 @@ pipeline_localizer:
     # Input topics
     endpoints_topic: "/pipeline/endpoints"
     dvl_altitude_topic: "/dvl/altitude"
-    camera_info_topic: "/cam/camera_info"
+    camera_info_topic: "/pipeline/camera/camera_info"
 
     # Output topics
     publish_topic: "/pipeline/start_point_3d"
 
     # Visualization (debug)
     enable_debug_image: true
-    enable_3d_markers: false
     debug_input_image_topic: "/pipeline/camera/segmentation_mask"
     debug_output_image_topic: "/pipeline/debug/localization_overlay"
-    marker_topic: "/pipeline/debug/markers"
 
     # Future triangulation parameters (not implemented yet)
     enable_triangulation: false
