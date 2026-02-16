@@ -42,28 +42,61 @@ static geometry_msgs::msg::Quaternion quatFromYaw(double yaw_rad)
   return tf2::toMsg(q);
 }
 
-static double angleBetweenLinesRad(const cv::Point2f& p1, const cv::Point2f& p2,
-                                   const cv::Point2f& q1, const cv::Point2f& q2)
-{
-    cv::Point2f v1 = p2 - p1;
-    cv::Point2f v2 = q2 - q1;
+constexpr double PI = 3.14159265358979323846;
 
-    double n1 = std::hypot(v1.x, v1.y);
-    double n2 = std::hypot(v2.x, v2.y);
-
-    // Degenerate line check
-    if (n1 == 0.0 || n2 == 0.0){ return 0.0;}
-
-    double dot = v1.x * v2.x + v1.y * v2.y;
-    double cosTheta = dot / (n1 * n2);
-
-    // Clamp for numeric safety (avoid NaNs from acos)
-    cosTheta = std::max(-1.0, std::min(1.0, cosTheta));
-
-    double rad = std::acos(cosTheta);
-    return rad;
-    
+// Normalize angle to [-pi, pi]
+double normalizeAngle(double angle) {
+    while (angle > PI)  angle -= 2.0 * PI;
+    while (angle < -PI) angle += 2.0 * PI;
+    return angle;
 }
+
+double angleBetweenLinesRad(
+    double yaw,                         // current yaw (radians)
+    const cv::Point2f& p1, const cv::Point2f& p2,
+    const cv::Point2f& q1, const cv::Point2f& q2
+) {
+    double v1x = p2.x - p1.x;
+    double v1y = p2.y - p1.y;
+    double v2x = q2.x - q1.x;
+    double v2y = q2.y - q1.y;
+
+    // Magnitudes
+    double mag1 = std::sqrt(v1x * v1x + v1y * v1y);
+    double mag2 = std::sqrt(v2x * v2x + v2y * v2y);
+
+    if (mag1 == 0.0 || mag2 == 0.0)
+        return yaw;  // no change
+
+    // Dot product → angle magnitude
+    double dot = (v1x * v2x + v1y * v2y) / (mag1 * mag2);
+    dot = std::fmax(-1.0, std::fmin(1.0, dot));
+
+    double angle = std::acos(dot);
+
+    // Cross product → sign
+    double cross = v1x * v2y - v1y * v2x;
+    if (cross < 0)
+        angle = -angle;
+
+    if (std::abs(angle) > 1.7){
+      angle = -angle;
+    }
+
+    // Update yaw
+    yaw += angle;
+
+    // Normalize final yaw
+    return normalizeAngle(yaw);
+}
+
+double hight_regulator(double z_hight, double dvl_hight, double target_hight = 0.7){
+  auto change = target_hight - dvl_hight;
+  auto new_hight = z_hight - change;
+  return new_hight;
+}
+
+
 
 // Converts pixel coordinates (u, v) to ground-plane meters (X, Y)
 // Camera is assumed to be looking straight down, parallel to ground
@@ -84,7 +117,7 @@ std::optional<cv::Point2d> groundDistanceFromPixel(
 
     // Project onto ground plane (Z = 0)
     double X = x_norm * cameraHeightMeters;
-    double Y = y_norm * cameraHeightMeters;
+    double Y = - y_norm * cameraHeightMeters;
 
     return cv::Point2d(X, Y);
 }
@@ -218,14 +251,14 @@ private:
     }
   }
 
-  void sendOrDebugWaypoint(double x, double y, double yaw,
+  void sendOrDebugWaypoint(double x, double y, double z, double yaw,
                            bool overwrite_prior, bool take_priority, uint mode, double switching_threshold)
   {
     // Build the waypoint once (used for both service + debug publish)
     vortex_msgs::msg::Waypoint wp;
     wp.pose.position.x = x;
     wp.pose.position.y = y;
-    wp.pose.position.z = robot_z_;
+    wp.pose.position.z = z;
     wp.pose.orientation = quatFromYaw(yaw);
     wp.mode = mode;
 
@@ -261,6 +294,80 @@ private:
       }
     );
   }
+  struct WaypointRequest
+  {
+    vortex_msgs::msg::Waypoint wp;
+    bool overwrite_prior;
+    bool take_priority;
+    double switching_threshold;
+  };
+
+  void enqueueWaypoint(
+        const vortex_msgs::msg::Waypoint& wp,
+        bool overwrite_prior,
+        bool take_priority,
+        double switching_threshold)
+  {
+    // Always publish debug
+    debug_wp_pub_->publish(wp);
+
+    request_queue_.push_back(
+        {wp, overwrite_prior, take_priority, switching_threshold});
+
+    trySendNextRequest();
+  }
+
+  void trySendNextRequest()
+  {
+    if (request_in_flight_)
+      return;
+
+    if (request_queue_.empty())
+      return;
+
+    if (!client_->service_is_ready())
+    {
+      RCLCPP_WARN_THROTTLE(
+          get_logger(), *get_clock(), 2000,
+          "Service not ready.");
+      return;
+    }
+
+    request_in_flight_ = true;
+
+    auto item = request_queue_.front();
+    request_queue_.pop_front();
+
+    auto req = std::make_shared<vortex_msgs::srv::SendWaypoints::Request>();
+    req->waypoints = {item.wp};
+    req->overwrite_prior_waypoints = item.overwrite_prior;
+    req->take_priority = item.take_priority;
+    req->switching_threshold = item.switching_threshold;
+
+    client_->async_send_request(
+        req,
+        [this](rclcpp::Client<vortex_msgs::srv::SendWaypoints>::SharedFuture future)
+        {
+          request_in_flight_ = false;
+
+          try
+          {
+            auto resp = future.get();
+            RCLCPP_INFO(this->get_logger(),
+                        "Waypoint sent. success=%d",
+                        resp->success);
+          }
+          catch (...)
+          {
+            RCLCPP_WARN(this->get_logger(),
+                        "Waypoint send failed.");
+          }
+
+          // Send next one in queue
+          trySendNextRequest();
+        });
+  }
+
 
 
   // --- 1 line case ---
@@ -271,7 +378,7 @@ private:
     cv::Point2f p2(line.p1.x, line.p1.y);
 
     // Take the farther endpoint as the "end"
-    cv::Point2f end = (cv::norm(p2) > cv::norm(p1)) ? p2 : p1;
+    cv::Point2f end = (cv::norm(p2) < cv::norm(p1)) ? p2 : p1;
 
     cv::Point2d groundXZ;
     double dist = 0.5;
@@ -283,11 +390,12 @@ private:
     // Example mapping: world x += forward, world y += left/right
     auto [xr, xy] =rotateXY(XZ.y, XZ.x, robot_yaw_);
     auto [xc, yc] =rotateXY(camera_placment_x_, 0, robot_yaw_);
+    auto new_robot_z = hight_regulator(robot_a_, robot_z_);
 
     double x_in_meters = robot_x_ + xr + xc;
     double y_in_meters = robot_y_ + xy + yc;
 
-    sendOrDebugWaypoint(x_in_meters, y_in_meters, robot_yaw_, false, false, vortex_msgs::msg::Waypoint::ONLY_POSITION, 0.3);
+    sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_, true, false, vortex_msgs::msg::Waypoint::ONLY_POSITION, 0.3);
 
   }
 
@@ -318,7 +426,7 @@ private:
         avg_dist += cv::norm(cross_history_[i] - cross_history_[i + 1]);
       avg_dist /= 2.0;
       
-      if (avg_dist < 100.0)  // pixels threshold for "close proximity"
+      if (avg_dist < 100.0 & cross.y < 540 )  // pixels threshold for "close proximity"
       {
         double dist;
         auto point_opt = groundDistanceFromPixel(cv::Point2d(cross.x, cross.y), K_, robot_a_);
@@ -328,14 +436,13 @@ private:
           return;
         }
 
-        const auto &XZ = *point_opt;   // XZ.x = X (left/right), XZ.y = Z (forward)
+        const auto &XZ = *point_opt; 
 
         RCLCPP_WARN(this->get_logger(),  "ray.y = %.6f, pixel y = %.1f", ray[1], cross.y);
 
 
-        // Example mapping: world x += forward, world y += left/right
         auto [xr, xy] =rotateXY(XZ.y, XZ.x, robot_yaw_);
-        auto [xc, yc] =rotateXY(camera_placment_x_, 0, robot_yaw_);
+        auto [xc, yc] =rotateXY(camera_placment_x_ ,0 , robot_yaw_);
 
         double x_in_meters = robot_x_ + xr + xc;
         double y_in_meters = robot_y_ + xy + yc;
@@ -354,20 +461,47 @@ private:
         last_corner_x_ = x_in_meters;
         last_corner_y_ = y_in_meters;
         have_last_corner_ = true;
+        auto new_robot_z = hight_regulator(robot_a_, robot_z_);
 
-        // Publish corner waypoint
-        sendOrDebugWaypoint(x_in_meters, y_in_meters, robot_yaw_, true, true, vortex_msgs::msg::Waypoint::ONLY_POSITION, 0.3);
+        std::vector<vortex_msgs::msg::Waypoint> wps;
+        // 1️⃣ Corner position
+        vortex_msgs::msg::Waypoint wp1;
+        wp1.pose.position.x = x_in_meters;
+        wp1.pose.position.y = y_in_meters;
+        wp1.pose.position.z = new_robot_z;
+        wp1.pose.orientation = quatFromYaw(robot_yaw_);
+        wp1.mode = vortex_msgs::msg::Waypoint::FULL_POSE;
+        wps.push_back(wp1);
 
         // Angle between lines
-        double angle_rad = angleBetweenLinesRad(p1, p2, q1, q2);
-        double yaw_rad = robot_yaw_ + angle_rad;
-        sendOrDebugWaypoint(x_in_meters, y_in_meters, yaw_rad, false, true, vortex_msgs::msg::Waypoint::ONLY_ORIENTATION, 0.1);
+        double angle_rad = angleBetweenLinesRad(robot_yaw_, p1, p2, q1, q2);
+        double yaw_rad = angle_rad;
+        // 2️⃣ Orientation update
+        vortex_msgs::msg::Waypoint wp2;
+        wp2.pose.position.x = x_in_meters;
+        wp2.pose.position.y = y_in_meters;
+        wp2.pose.position.z = new_robot_z;
+        wp2.pose.orientation = quatFromYaw(yaw_rad);
+        wp2.mode = vortex_msgs::msg::Waypoint::FULL_POSE;
+        wps.push_back(wp2);
+
 
         double forward_dist = 0.5;
         double xf = x_in_meters + forward_dist * std::cos(yaw_rad);
         double yf = y_in_meters + forward_dist * std::sin(yaw_rad);
 
-        sendOrDebugWaypoint(xf, yf, yaw_rad, false, true ,vortex_msgs::msg::Waypoint::ONLY_POSITION, 0.3);
+        // 3️⃣ Forward point
+        vortex_msgs::msg::Waypoint wp3;
+        wp3.pose.position.x = xf;
+        wp3.pose.position.y = yf;
+        wp3.pose.position.z = new_robot_z;
+        wp3.pose.orientation = quatFromYaw(yaw_rad);
+        wp3.mode = vortex_msgs::msg::Waypoint::FULL_POSE;
+        wps.push_back(wp3);
+
+        enqueueWaypoint(wp1, false,  true,  0.1);   // corner overwrite
+        enqueueWaypoint(wp2, false, true,  0.1);   // orientation
+        enqueueWaypoint(wp3, false, true,  0.1);   // forward
 
 
         return;
@@ -442,6 +576,10 @@ private:
   }
 
   // --- Members ---
+  
+  std::deque<WaypointRequest> request_queue_;
+  bool request_in_flight_{false};
+
   std::string debug_waypoint_topic_;
   std::string debug_service_off_topic_;
 

@@ -412,8 +412,24 @@ private:
 
     // Segment for first line
     cv::Point p1a, p1b;
-    clippedSegmentFromPts(L1, pts, w, h, clip_to_object_, clip_max_dist_px_, p1a, p1b);
-    cv::line(color, p1a, p1b, cv::Scalar(draw_b_, draw_g_, draw_r_), draw_thickness_, cv::LINE_AA);
+    bool first_ok = false;
+
+    if (clippedSegmentFromPts(L1, pts, w, h, clip_to_object_, clip_max_dist_px_, p1a, p1b)) {
+
+      const cv::Vec4i seg1(p1a.x, p1a.y, p1b.x, p1b.y);
+
+      first_ok = hasEnoughWhiteUnderLine(
+          cv_ptr->image,   // or use mask if that's your binary image
+          seg1,
+          /*bandHeight=*/10,
+          /*minWhiteRatio=*/0.60);
+
+      if (first_ok) {
+        cv::line(color, p1a, p1b,
+                cv::Scalar(draw_b_, draw_g_, draw_r_),
+                draw_thickness_, cv::LINE_AA);
+      }
+    }
 
   // ----- Second-pass search for a crossing line -----
   LineModel L2;
@@ -466,7 +482,7 @@ private:
   }
 
     publishImage(color, msg->header);
-    publishLines(msg->header, p1a, p1b, second_ok, p2a, p2b);
+    publishLines(msg->header, p1a, p1b, first_ok, second_ok, p2a, p2b);
 
   }
 
@@ -485,12 +501,14 @@ private:
   void publishLines(const std_msgs::msg::Header& header,
                     const cv::Point& p1a, const cv::Point& p1b,
                     bool have_second,
+                    bool have_first,
                     const cv::Point& p2a, const cv::Point& p2b)
   {
     vortex_msgs::msg::LineSegment2DArray arr;
     arr.header = header;
-
-    arr.lines.push_back(makeSeg(p1a, p1b));
+    if (have_first){
+      arr.lines.push_back(makeSeg(p1a, p1b));
+    }
     if (have_second) {
       arr.lines.push_back(makeSeg(p2a, p2b));
     }
