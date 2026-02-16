@@ -14,6 +14,9 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -21,9 +24,8 @@ find_package(nav_msgs REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
-find_package(visualization_msgs REQUIRED)
 
-# Geometry library (ROS-independent backprojection)
+# Geometry library (now uses tf2 for coordinate transformations)
 add_library(pipeline_geometry
   src/core/geometry.cpp
 )
@@ -32,18 +34,20 @@ target_include_directories(pipeline_geometry PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(pipeline_geometry ${OpenCV_LIBS})
+ament_target_dependencies(pipeline_geometry
+  geometry_msgs tf2 tf2_ros tf2_geometry_msgs
+)
 
 # ROS node executable
 add_executable(localizer_node
   src/ros/localizer_node.cpp
   src/localizer_node_main.cpp
   src/visualization/image_overlay.cpp
-  src/visualization/marker_publisher.cpp
 )
 target_link_libraries(localizer_node pipeline_geometry ${OpenCV_LIBS})
 ament_target_dependencies(localizer_node
   rclcpp sensor_msgs geometry_msgs std_msgs nav_msgs vortex_msgs
-  cv_bridge visualization_msgs
+  cv_bridge tf2 tf2_ros tf2_geometry_msgs
 )
 
 # Install targets
