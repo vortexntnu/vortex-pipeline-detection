@@ -1,5 +1,6 @@
 #include "vortex_pipeline_3d/localizer_node.hpp"
 #include <cmath>
+#include <vortex_msgs/msg/detail/landmark_array__struct.hpp>
 
 using std::placeholders::_1;
 using namespace vortex_pipeline_3d;
@@ -38,8 +39,8 @@ LocalizerNode::LocalizerNode(const rclcpp::NodeOptions &options)
       std::bind(&LocalizerNode::dvlCallback, this, _1));
 
   // Publisher using parameter
-  landmark_pub_ = this->create_publisher<vortex_msgs::msg::Landmark>(
-      publish_topic, 10);
+  landmark_pub_ = this->create_publisher<vortex_msgs::msg::LandmarkArray>(
+      publish_topic, qos);
 
   RCLCPP_INFO(this->get_logger(), "Subscribed to:");
   RCLCPP_INFO(this->get_logger(), "  - Endpoints: %s", endpoints_topic.c_str());
@@ -131,15 +132,15 @@ void LocalizerNode::endpointsCallback(
   cv::Point3d selected_3d = selectClosestEndpointTo3DOrigin(endpoints_3d);
 
   // Publish as Landmark
-  vortex_msgs::msg::Landmark landmark_msg;
+  vortex_msgs::msg::LandmarkArray landmark_msg;
   landmark_msg.header.stamp = msg->header.stamp;
   landmark_msg.header.frame_id = "odom";
-  landmark_msg.type_class.type = vortex_msgs::msg::LandmarkTypeClass::PIPELINE_START;
-  landmark_msg.id = 0;
-  landmark_msg.pose.pose.position.x = selected_3d.x;
-  landmark_msg.pose.pose.position.y = selected_3d.y;
-  landmark_msg.pose.pose.position.z = selected_3d.z;
-  landmark_msg.pose.pose.orientation.w = 1.0;
+  landmark_msg.landmarks.at(0).type_class.type = vortex_msgs::msg::LandmarkTypeClass::PIPELINE_START;
+  landmark_msg.landmarks.at(0).id = 0;
+  landmark_msg.landmarks.at(0).pose.pose.position.x = selected_3d.x;
+  landmark_msg.landmarks.at(0).pose.pose.position.y = selected_3d.y;
+  landmark_msg.landmarks.at(0).pose.pose.position.z = selected_3d.z;
+  landmark_msg.landmarks.at(0).pose.pose.orientation.w = 1.0;
 
   landmark_pub_->publish(landmark_msg);
 
