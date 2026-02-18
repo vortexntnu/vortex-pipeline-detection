@@ -38,7 +38,7 @@ LocalizerNode::LocalizerNode(const rclcpp::NodeOptions &options)
       std::bind(&LocalizerNode::dvlCallback, this, _1));
 
   // Publisher using parameter
-  pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+  landmark_pub_ = this->create_publisher<vortex_msgs::msg::Landmark>(
       publish_topic, 10);
 
   RCLCPP_INFO(this->get_logger(), "Subscribed to:");
@@ -130,21 +130,21 @@ void LocalizerNode::endpointsCallback(
   // Select closest endpoint to 3D origin
   cv::Point3d selected_3d = selectClosestEndpointTo3DOrigin(endpoints_3d);
 
-  // Publish 3D pose
-  geometry_msgs::msg::PoseStamped pose_msg;
-  pose_msg.header.stamp = msg->header.stamp;
-  pose_msg.header.frame_id = intrinsics.frame_id;
-  pose_msg.pose.position.x = selected_3d.x;
-  pose_msg.pose.position.y = selected_3d.y;
-  pose_msg.pose.position.z = selected_3d.z;
-  pose_msg.pose.orientation.w = 1.0;  // Identity (no orientation, just a point)
+  // Publish as Landmark
+  vortex_msgs::msg::Landmark landmark_msg;
+  landmark_msg.header.stamp = msg->header.stamp;
+  landmark_msg.header.frame_id = "odom";
+  landmark_msg.type = vortex_msgs::msg::Landmark::PIPELINE_START;
+  landmark_msg.pose.pose.position.x = selected_3d.x;
+  landmark_msg.pose.pose.position.y = selected_3d.y;
+  landmark_msg.pose.pose.position.z = selected_3d.z;
+  landmark_msg.pose.pose.orientation.w = 1.0;
 
-  pose_pub_->publish(pose_msg);
+  landmark_pub_->publish(landmark_msg);
 
   RCLCPP_DEBUG(this->get_logger(),
-      "Published 3D pose: (%.3f, %.3f, %.3f) in frame %s",
-      selected_3d.x, selected_3d.y, selected_3d.z,
-      intrinsics.frame_id.c_str());
+      "Published landmark: (%.3f, %.3f, %.3f) in odom frame",
+      selected_3d.x, selected_3d.y, selected_3d.z);
 
   // Visualization (if enabled)
   if (enable_debug_image_ && image_viz_ && last_image_) {

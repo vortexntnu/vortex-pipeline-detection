@@ -6,7 +6,7 @@ pipeline_localizer:
     camera_info_topic: "/pipeline/camera/camera_info"
 
     # Output topics
-    publish_topic: "/pipeline/start_point_3d"
+    publish_topic: "/pipeline/landmark"
 
     # Visualization (debug)
     enable_debug_image: true

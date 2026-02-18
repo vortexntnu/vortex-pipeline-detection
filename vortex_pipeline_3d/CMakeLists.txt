@@ -20,7 +20,6 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
@@ -46,7 +45,7 @@ add_executable(localizer_node
 )
 target_link_libraries(localizer_node pipeline_geometry ${OpenCV_LIBS})
 ament_target_dependencies(localizer_node
-  rclcpp sensor_msgs geometry_msgs std_msgs nav_msgs vortex_msgs
+  rclcpp sensor_msgs geometry_msgs std_msgs vortex_msgs
   cv_bridge tf2 tf2_ros tf2_geometry_msgs
 )
 

@@ -9,9 +9,8 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include <vortex_msgs/msg/landmark.hpp>
 #include <vortex_msgs/msg/point2_d_array.hpp>
 #include <opencv2/core.hpp>
 #include <shared_mutex>
@@ -39,7 +38,7 @@ private:
   rclcpp::Subscription<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_sub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr caminfo_sub_;
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr dvl_sub_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
+  rclcpp::Publisher<vortex_msgs::msg::Landmark>::SharedPtr landmark_pub_;
 
   // Visualization (optional)
   std::unique_ptr<ImageOverlayVisualizer> image_viz_;
