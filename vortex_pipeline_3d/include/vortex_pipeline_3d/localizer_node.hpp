@@ -11,6 +11,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <vortex_msgs/msg/landmark.hpp>
+#include <vortex_msgs/msg/landmark_type_class.hpp>
 #include <vortex_msgs/msg/point2_d_array.hpp>
 #include <opencv2/core.hpp>
 #include <shared_mutex>

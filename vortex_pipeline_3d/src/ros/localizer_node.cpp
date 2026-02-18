@@ -134,7 +134,8 @@ void LocalizerNode::endpointsCallback(
   vortex_msgs::msg::Landmark landmark_msg;
   landmark_msg.header.stamp = msg->header.stamp;
   landmark_msg.header.frame_id = "odom";
-  landmark_msg.type = vortex_msgs::msg::Landmark::PIPELINE_START;
+  landmark_msg.type_class.type = vortex_msgs::msg::LandmarkTypeClass::PIPELINE_START;
+  landmark_msg.id = 0;
   landmark_msg.pose.pose.position.x = selected_3d.x;
   landmark_msg.pose.pose.position.y = selected_3d.y;
   landmark_msg.pose.pose.position.z = selected_3d.z;
