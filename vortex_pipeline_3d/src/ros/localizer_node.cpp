@@ -1,6 +1,7 @@
 #include "vortex_pipeline_3d/localizer_node.hpp"
 #include <cmath>
 #include <vortex_msgs/msg/detail/landmark_array__struct.hpp>
+#include <vortex_msgs/msg/detail/landmark_type_class__struct.hpp>
 
 using std::placeholders::_1;
 using namespace vortex_pipeline_3d;
@@ -135,6 +136,7 @@ void LocalizerNode::endpointsCallback(
   vortex_msgs::msg::LandmarkArray landmark_msg;
   landmark_msg.header.stamp = msg->header.stamp;
   landmark_msg.header.frame_id = "odom";
+  landmark_msg.landmarks.resize(1);
   landmark_msg.landmarks.at(0).type_class.type = vortex_msgs::msg::LandmarkTypeClass::PIPELINE_START;
   landmark_msg.landmarks.at(0).id = 0;
   landmark_msg.landmarks.at(0).pose.pose.position.x = selected_3d.x;
