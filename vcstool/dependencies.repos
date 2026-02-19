@@ -2,4 +2,4 @@ repositories:
   vortex-msgs:
     type: git
     url: https://github.com/vortexntnu/vortex-msgs.git
-    version: main
+    version: feat/landmark-msg-refactor

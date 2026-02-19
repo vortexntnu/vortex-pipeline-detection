@@ -22,12 +22,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPOS_FILE="$WORKSPACE_DIR/vcstool/dependencies.repos"
 
-# Create src directory if it doesn't exist
-mkdir -p "$WORKSPACE_DIR/src"
-
 # Import repositories
 echo "Importing repositories from vcstool/dependencies.repos..."
-vcs import --input "$REPOS_FILE" "$WORKSPACE_DIR/src"
+vcs import --input "$REPOS_FILE" "$WORKSPACE_DIR"
 
 echo "======================================================================"
 echo " Dependencies imported successfully!"
