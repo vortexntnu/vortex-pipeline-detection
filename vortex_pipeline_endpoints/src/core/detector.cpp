@@ -3,7 +3,6 @@
 // and can be reused by other packages. Keep ROS types out of this file.
 
 #include "vortex_pipeline_endpoints/detector.hpp"
-#include <iostream>
 
 namespace vortex_pipeline_endpoints {
 
@@ -18,7 +17,6 @@ PipelineDetector::findFurthestPoints(const cv::Mat &binary) {
     cv::findContours(binary.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     if (contours.empty()) {
-        std::cout << "[DEBUG FURTHEST] No contours found" << std::endl;
         return std::nullopt;
     }
 
@@ -29,17 +27,11 @@ PipelineDetector::findFurthestPoints(const cv::Mat &binary) {
         });
 
     std::vector<cv::Point> largest_contour = *largest_it;
-    std::cout << "[DEBUG FURTHEST] Largest contour has " << largest_contour.size()
-              << " points, area = " << cv::contourArea(largest_contour) << std::endl;
-
     // Compute convex hull to find extreme points
     std::vector<cv::Point> hull;
     cv::convexHull(largest_contour, hull);
 
-    std::cout << "[DEBUG FURTHEST] Convex hull has " << hull.size() << " points" << std::endl;
-
     if (hull.size() < 2) {
-        std::cout << "[WARN] Convex hull too small" << std::endl;
         return std::nullopt;
     }
 
@@ -60,13 +52,8 @@ PipelineDetector::findFurthestPoints(const cv::Mat &binary) {
 
     // Validate we found meaningful endpoints (at least 10 pixels apart)
     if (max_dist < 10) {
-        std::cout << "[WARN] Furthest points too close: " << max_dist << " pixels" << std::endl;
         return std::nullopt;
     }
-
-    std::cout << "[DEBUG FURTHEST] Found endpoints at (" << pt1.x << "," << pt1.y
-              << ") and (" << pt2.x << "," << pt2.y << ") with distance "
-              << max_dist << " pixels" << std::endl;
 
     return std::make_pair(pt1, pt2);
 }
@@ -91,7 +78,6 @@ std::optional<PipelineEndpoints> PipelineDetector::findPipelineEndpoints(
     int numComponents = cv::connectedComponentsWithStats(clean_mask, labels, stats, centroids);
 
     if (numComponents <= 1) {
-        std::cout << "[DEBUG CONVEXHULL] No components found" << std::endl;
         return std::nullopt;
     }
 
@@ -107,13 +93,11 @@ std::optional<PipelineEndpoints> PipelineDetector::findPipelineEndpoints(
     }
 
     cv::Mat pipeMask = (labels == largestIdx);
-    std::cout << "[DEBUG CONVEXHULL] Largest component area: " << largestArea << " pixels" << std::endl;
 
     // 3. FURTHEST POINTS DETECTION using ConvexHull
     auto furthest = findFurthestPoints(pipeMask);
 
     if (!furthest) {
-        std::cout << "[WARN] ConvexHull failed to find endpoints" << std::endl;
         return std::nullopt;
     }
 
@@ -122,10 +106,6 @@ std::optional<PipelineEndpoints> PipelineDetector::findPipelineEndpoints(
     result.endpoint1 = furthest->first;
     result.endpoint2 = furthest->second;
     result.found_both = true;
-
-    std::cout << "[DEBUG CONVEXHULL] Found both endpoints: ("
-              << result.endpoint1.x << "," << result.endpoint1.y << ") and ("
-              << result.endpoint2.x << "," << result.endpoint2.y << ")" << std::endl;
 
     // 4. DEBUG VISUALIZATION (if requested)
     if (debug_out != nullptr) {
@@ -180,9 +160,6 @@ cv::Point2f PipelineDetector::undistortPoint(const cv::Point &pixel,
     std::vector<cv::Point2f> distorted_pts = {cv::Point2f(pixel.x, pixel.y)};
     std::vector<cv::Point2f> undistorted_pts;
     cv::undistortPoints(distorted_pts, undistorted_pts, K, D, cv::noArray(), K);
-
-    std::cout << "[DEBUG UNDISTORT] (" << pixel.x << "," << pixel.y << ") -> ("
-              << undistorted_pts[0].x << "," << undistorted_pts[0].y << ")" << std::endl;
 
     return undistorted_pts[0];
 }

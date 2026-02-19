@@ -37,15 +37,13 @@ DetectorNode::DetectorNode() : Node("pipeline_detector") {
 }
 
 void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
-    RCLCPP_INFO(this->get_logger(), "Received mask image: %dx%d, encoding: %s",
-                msg->width, msg->height, msg->encoding.c_str());
+    RCLCPP_DEBUG(this->get_logger(), "Received mask image: %dx%d", msg->width, msg->height);
 
     // Convert to OpenCV
     cv::Mat mask;
     try {
       auto cv_ptr = cv_bridge::toCvShare(msg, "mono8");
       mask = cv_ptr->image.clone();
-      RCLCPP_INFO(this->get_logger(), "Converted to OpenCV: %dx%d", mask.cols, mask.rows);
     } catch (const cv_bridge::Exception &e) {
       RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
       return;
@@ -53,7 +51,6 @@ void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
 
   // Find endpoints
   cv::Mat debug_vis;
-  RCLCPP_INFO(this->get_logger(), "Finding endpoints (debug=%s)...", debug_ ? "true" : "false");
   auto endpoints = PipelineDetector::findPipelineEndpoints(
       mask, debug_ ? &debug_vis : nullptr);
 
@@ -62,7 +59,7 @@ void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
       return;
     }
 
-    RCLCPP_INFO(this->get_logger(), "Found endpoints: (%d,%d) and (%d,%d)",
+    RCLCPP_DEBUG(this->get_logger(), "Found endpoints: (%d,%d) and (%d,%d)",
                 endpoints->endpoint1.x, endpoints->endpoint1.y,
                 endpoints->endpoint2.x, endpoints->endpoint2.y);
 
@@ -81,19 +78,11 @@ void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
     endpoints_msg.points.push_back(pt2);
 
     endpoints_pub_->publish(endpoints_msg);
-    RCLCPP_INFO(this->get_logger(), "Published endpoints message");
 
     // Debug visualization
-    if (debug_) {
-      if (debug_vis.empty()) {
-        RCLCPP_WARN(this->get_logger(), "Debug enabled but debug_vis is empty!");
-      } else {
-        RCLCPP_INFO(this->get_logger(), "Publishing debug image: %dx%d",
-                    debug_vis.cols, debug_vis.rows);
-        auto debug_msg = cv_bridge::CvImage(msg->header, "bgr8", debug_vis).toImageMsg();
-        debug_pub_->publish(*debug_msg);
-        RCLCPP_INFO(this->get_logger(), "Debug image published");
-      }
+    if (debug_ && !debug_vis.empty()) {
+      auto debug_msg = cv_bridge::CvImage(msg->header, "bgr8", debug_vis).toImageMsg();
+      debug_pub_->publish(*debug_msg);
     }
 }
 
