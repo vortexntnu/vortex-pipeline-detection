@@ -1,3 +1,6 @@
+#VCS DEPENDENCIES
+*/vortex-msgs
+
 devel/
 logs/
 build/
