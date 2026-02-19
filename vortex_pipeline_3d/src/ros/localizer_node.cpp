@@ -161,22 +161,16 @@ void LocalizerNode::endpointsCallback(
       "Published landmark: (%.3f, %.3f, %.3f) in odom frame",
       selected_3d.x, selected_3d.y, selected_3d.z);
 
-  // Visualization (only when two endpoints are available; visualizer expects exactly 2)
+  // Visualization (if enabled)
   if (enable_debug_image_ && image_viz_ && last_image_) {
-    if (msg->points.size() == 2) {
-      std::vector<cv::Point2d> endpoints_2d = {
-        cv::Point2d(msg->points[0].x, msg->points[0].y),
-        cv::Point2d(msg->points[1].x, msg->points[1].y)
-      };
-
-      image_viz_->visualize(
-          last_image_, endpoints_2d, endpoints_3d,
-          selected_3d, intrinsics, dvl_altitude_, camera_to_world);
-    } else {
-      RCLCPP_DEBUG(this->get_logger(),
-          "Skipping debug image visualization (requires 2 endpoints, got %zu)",
-          msg->points.size());
+    std::vector<cv::Point2d> endpoints_2d;
+    for (const auto& pt : msg->points) {
+      endpoints_2d.emplace_back(pt.x, pt.y);
     }
+
+    image_viz_->visualize(
+        last_image_, endpoints_2d, endpoints_3d,
+        selected_3d, intrinsics, dvl_altitude_, camera_to_world);
   }
 }
 

@@ -15,7 +15,7 @@ private:
   void maskCallback(const sensor_msgs::msg::Image::SharedPtr msg);
 
   bool debug_;
-  DetectionMethod detection_method_{DetectionMethod::FURTHEST_POINTS};
+  DetectionMethod detection_method_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_sub_;
   rclcpp::Publisher<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;

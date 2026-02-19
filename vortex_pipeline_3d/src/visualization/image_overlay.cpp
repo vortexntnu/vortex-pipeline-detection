@@ -31,9 +31,10 @@ void ImageOverlayVisualizer::visualize(
     double dvl_altitude,
     const geometry_msgs::msg::TransformStamped& camera_to_world) {
 
-  if (endpoints_2d.size() != 2 || endpoints_3d.size() != 2) {
+  if (endpoints_2d.empty() || endpoints_3d.empty() ||
+      endpoints_2d.size() != endpoints_3d.size()) {
     RCLCPP_WARN(node_->get_logger(),
-        "ImageOverlayVisualizer: Expected 2 endpoints, got %zu and %zu",
+        "ImageOverlayVisualizer: Mismatched or empty endpoints (%zu 2D, %zu 3D)",
         endpoints_2d.size(), endpoints_3d.size());
     return;
   }
@@ -58,8 +59,7 @@ void ImageOverlayVisualizer::visualize(
   // Draw original 2D detections (green circles) and label them
   for (size_t i = 0; i < endpoints_2d.size(); ++i) {
     cv::circle(img, endpoints_2d[i], 8, GREEN, 2);
-    // Label with endpoint number
-    std::string label = "EP" + std::to_string(i + 1);
+    std::string label = (endpoints_2d.size() == 1) ? "START" : "EP" + std::to_string(i + 1);
     cv::putText(img, label, cv::Point(endpoints_2d[i].x + 12, endpoints_2d[i].y - 5),
                 cv::FONT_HERSHEY_SIMPLEX, 0.6, GREEN, 2);
   }
@@ -93,10 +93,11 @@ void ImageOverlayVisualizer::visualize(
   // ============================================================================
   // Create information panel overlay (semi-transparent background)
   // ============================================================================
-  int panel_width = 520;
-  int panel_height = 220;
-  int panel_x = 10;
-  int panel_y = 10;
+  const int line_spacing = 30;
+  const int panel_width = 520;
+  const int panel_height = line_spacing + static_cast<int>(endpoints_3d.size()) * 3 * line_spacing;
+  const int panel_x = 10;
+  const int panel_y = 10;
 
   cv::Mat panel(panel_height, panel_width, CV_8UC3, cv::Scalar(0, 0, 0));
   cv::addWeighted(img(cv::Rect(panel_x, panel_y, panel_width, panel_height)),
@@ -105,7 +106,6 @@ void ImageOverlayVisualizer::visualize(
 
   // Add information text
   int text_y = panel_y + 25;
-  int line_spacing = 30;
   const double font_scale = 0.5;
   const int thickness = 1;
 
@@ -116,52 +116,33 @@ void ImageOverlayVisualizer::visualize(
               cv::FONT_HERSHEY_SIMPLEX, font_scale, WHITE, thickness + 1);
   text_y += line_spacing;
 
-  // Endpoint 1 data
-  info.str("");
-  info << "EP1 - 2D: (" << std::fixed << std::setprecision(1)
-       << endpoints_2d[0].x << ", " << endpoints_2d[0].y << ") px";
-  cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
-              cv::FONT_HERSHEY_SIMPLEX, font_scale, GREEN, thickness);
-  text_y += line_spacing;
+  // Per-endpoint data
+  for (size_t i = 0; i < endpoints_3d.size(); ++i) {
+    std::string ep_label = (endpoints_2d.size() == 1) ? "START" : "EP" + std::to_string(i + 1);
 
-  info.str("");
-  info << "      3D: (" << std::fixed << std::setprecision(3)
-       << endpoints_3d[0].x << ", " << endpoints_3d[0].y << ", "
-       << endpoints_3d[0].z << ") m";
-  cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
-              cv::FONT_HERSHEY_SIMPLEX, font_scale, GREEN, thickness);
-  text_y += line_spacing;
+    info.str("");
+    info << ep_label << " - 2D: (" << std::fixed << std::setprecision(1)
+         << endpoints_2d[i].x << ", " << endpoints_2d[i].y << ") px";
+    cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
+                cv::FONT_HERSHEY_SIMPLEX, font_scale, GREEN, thickness);
+    text_y += line_spacing;
 
-  info.str("");
-  info << "      Reproj error: " << std::fixed << std::setprecision(2)
-       << reproj_errors[0] << " px";
-  cv::Scalar error_color = (reproj_errors[0] < 5.0) ? GREEN : cv::Scalar(0, 165, 255);
-  cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
-              cv::FONT_HERSHEY_SIMPLEX, font_scale, error_color, thickness);
-  text_y += line_spacing;
+    info.str("");
+    info << "       3D: (" << std::fixed << std::setprecision(3)
+         << endpoints_3d[i].x << ", " << endpoints_3d[i].y << ", "
+         << endpoints_3d[i].z << ") m";
+    cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
+                cv::FONT_HERSHEY_SIMPLEX, font_scale, GREEN, thickness);
+    text_y += line_spacing;
 
-  // Endpoint 2 data
-  info.str("");
-  info << "EP2 - 2D: (" << std::fixed << std::setprecision(1)
-       << endpoints_2d[1].x << ", " << endpoints_2d[1].y << ") px";
-  cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
-              cv::FONT_HERSHEY_SIMPLEX, font_scale, GREEN, thickness);
-  text_y += line_spacing;
-
-  info.str("");
-  info << "      3D: (" << std::fixed << std::setprecision(3)
-       << endpoints_3d[1].x << ", " << endpoints_3d[1].y << ", "
-       << endpoints_3d[1].z << ") m";
-  cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
-              cv::FONT_HERSHEY_SIMPLEX, font_scale, GREEN, thickness);
-  text_y += line_spacing;
-
-  info.str("");
-  info << "      Reproj error: " << std::fixed << std::setprecision(2)
-       << reproj_errors[1] << " px";
-  error_color = (reproj_errors[1] < 5.0) ? GREEN : cv::Scalar(0, 165, 255);
-  cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
-              cv::FONT_HERSHEY_SIMPLEX, font_scale, error_color, thickness);
+    info.str("");
+    info << "       Reproj error: " << std::fixed << std::setprecision(2)
+         << reproj_errors[i] << " px";
+    cv::Scalar error_color = (reproj_errors[i] < 5.0) ? GREEN : cv::Scalar(0, 165, 255);
+    cv::putText(img, info.str(), cv::Point(panel_x + 10, text_y),
+                cv::FONT_HERSHEY_SIMPLEX, font_scale, error_color, thickness);
+    text_y += line_spacing;
+  }
 
   // Add legend at bottom
   int legend_y = img.rows - 80;
