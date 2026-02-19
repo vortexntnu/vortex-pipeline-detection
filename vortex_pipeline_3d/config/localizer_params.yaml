@@ -3,7 +3,7 @@ pipeline_localizer:
     # Input topics
     endpoints_topic: "/pipeline/endpoints"
     dvl_altitude_topic: "/dvl/altitude"
-    camera_info_topic: "/cam/camera_info"
+    camera_info_topic: "/pipeline/camera/camera_info"
 
     # Output topics
     publish_topic: "/orca/landmarks"
