@@ -63,7 +63,7 @@ PipelineDetector::findFurthestPoints(const cv::Mat &binary) {
 // ============================================================================
 
 std::optional<PipelineEndpoints> PipelineDetector::findPipelineEndpoints(
-    const cv::Mat &mask, cv::Mat *debug_out) {
+    const cv::Mat &mask, DetectionMethod method, cv::Mat *debug_out) {
 
     if (mask.empty()) return std::nullopt;
 
@@ -94,18 +94,20 @@ std::optional<PipelineEndpoints> PipelineDetector::findPipelineEndpoints(
 
     cv::Mat pipeMask = (labels == largestIdx);
 
-    // 3. FURTHEST POINTS DETECTION using ConvexHull
-    auto furthest = findFurthestPoints(pipeMask);
-
-    if (!furthest) {
-        return std::nullopt;
-    }
-
-    // Success - have both endpoints from ConvexHull
+    // 3. METHOD DISPATCH
     PipelineEndpoints result;
-    result.endpoint1 = furthest->first;
-    result.endpoint2 = furthest->second;
-    result.found_both = true;
+
+    if (method == DetectionMethod::FURTHEST_POINTS) {
+        auto furthest = findFurthestPoints(pipeMask);
+        if (!furthest) return std::nullopt;
+        result.endpoint1 = furthest->first;
+        result.endpoint2 = furthest->second;
+    } else if (method == DetectionMethod::LOWEST_PIXEL) {
+        auto lowest = findLowestPixel(pipeMask);
+        if (!lowest) return std::nullopt;
+        result.endpoint1 = *lowest;
+        // endpoint2 left as nullopt — single endpoint result
+    }
 
     // 4. DEBUG VISUALIZATION (if requested)
     if (debug_out != nullptr) {
@@ -113,22 +115,23 @@ std::optional<PipelineEndpoints> PipelineDetector::findPipelineEndpoints(
         cv::cvtColor(pipeMask, *debug_out, cv::COLOR_GRAY2BGR);
 
         // Draw line between endpoints to show detected pipe axis
-        if (result.found_both) {
-            cv::line(*debug_out, result.endpoint1, result.endpoint2,
+        if (result.endpoint2.has_value()) {
+            cv::line(*debug_out, result.endpoint1, *result.endpoint2,
                     cv::Scalar(255, 255, 0), 2);  // Cyan axis line
         }
 
-        // Mark first endpoint (endpoint1) in green
+        // Mark first endpoint in green
         cv::circle(*debug_out, result.endpoint1, 8, cv::Scalar(0, 255, 0), -1);
-        cv::putText(*debug_out, "EP1",
+        const std::string label1 = result.endpoint2.has_value() ? "EP1" : "START";
+        cv::putText(*debug_out, label1,
                     cv::Point(result.endpoint1.x + 12, result.endpoint1.y),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
 
-        // Mark second endpoint (endpoint2) in magenta if different
-        if (result.found_both) {
-            cv::circle(*debug_out, result.endpoint2, 8, cv::Scalar(255, 0, 255), -1);
+        // Mark second endpoint in magenta if present
+        if (result.endpoint2.has_value()) {
+            cv::circle(*debug_out, *result.endpoint2, 8, cv::Scalar(255, 0, 255), -1);
             cv::putText(*debug_out, "EP2",
-                        cv::Point(result.endpoint2.x + 12, result.endpoint2.y),
+                        cv::Point(result.endpoint2->x + 12, result.endpoint2->y),
                         cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 255), 2);
         }
     }

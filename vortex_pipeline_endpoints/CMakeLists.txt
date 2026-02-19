@@ -23,6 +23,7 @@ find_package(OpenCV REQUIRED)
 # Core library (ROS-independent)
 add_library(detector_core
   src/core/detector.cpp
+  src/core/lowest_pixel.cpp
 )
 target_include_directories(detector_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

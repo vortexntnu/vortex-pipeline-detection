@@ -78,8 +78,8 @@ LocalizerNode::LocalizerNode(const rclcpp::NodeOptions &options)
 void LocalizerNode::endpointsCallback(
     const vortex_msgs::msg::Point2DArray::SharedPtr msg) {
 
-  if (msg->points.size() < 2) {
-    RCLCPP_WARN(this->get_logger(), "Received less than 2 endpoints");
+  if (msg->points.empty()) {
+    RCLCPP_WARN(this->get_logger(), "Received empty endpoints array");
     return;
   }
 
@@ -116,21 +116,32 @@ void LocalizerNode::endpointsCallback(
     return;
   }
 
-  // Backproject both endpoints to 3D using full transform
-  cv::Point3d pt1_3d = PipelineGeometry::backprojectGroundPlane(
-      static_cast<int>(msg->points[0].x),
-      static_cast<int>(msg->points[0].y),
-      dvl_altitude_, intrinsics, camera_to_world, true);
+  // Backproject endpoint(s) to 3D and select the pipeline start
+  cv::Point3d selected_3d;
+  std::vector<cv::Point3d> endpoints_3d;
 
-  cv::Point3d pt2_3d = PipelineGeometry::backprojectGroundPlane(
-      static_cast<int>(msg->points[1].x),
-      static_cast<int>(msg->points[1].y),
-      dvl_altitude_, intrinsics, camera_to_world, true);
+  if (msg->points.size() == 1) {
+    // Single endpoint (lowest_pixel method) — use directly as pipeline start
+    selected_3d = PipelineGeometry::backprojectGroundPlane(
+        static_cast<int>(msg->points[0].x),
+        static_cast<int>(msg->points[0].y),
+        dvl_altitude_, intrinsics, camera_to_world, true);
+    endpoints_3d = {selected_3d};
+  } else {
+    // Two endpoints — select closest to 3D origin
+    cv::Point3d pt1_3d = PipelineGeometry::backprojectGroundPlane(
+        static_cast<int>(msg->points[0].x),
+        static_cast<int>(msg->points[0].y),
+        dvl_altitude_, intrinsics, camera_to_world, true);
 
-  std::vector<cv::Point3d> endpoints_3d = {pt1_3d, pt2_3d};
+    cv::Point3d pt2_3d = PipelineGeometry::backprojectGroundPlane(
+        static_cast<int>(msg->points[1].x),
+        static_cast<int>(msg->points[1].y),
+        dvl_altitude_, intrinsics, camera_to_world, true);
 
-  // Select closest endpoint to 3D origin
-  cv::Point3d selected_3d = selectClosestEndpointTo3DOrigin(endpoints_3d);
+    endpoints_3d = {pt1_3d, pt2_3d};
+    selected_3d = selectClosestEndpointTo3DOrigin(endpoints_3d);
+  }
 
   // Publish as Landmark
   vortex_msgs::msg::LandmarkArray landmark_msg;
@@ -150,16 +161,22 @@ void LocalizerNode::endpointsCallback(
       "Published landmark: (%.3f, %.3f, %.3f) in odom frame",
       selected_3d.x, selected_3d.y, selected_3d.z);
 
-  // Visualization (if enabled)
+  // Visualization (only when two endpoints are available; visualizer expects exactly 2)
   if (enable_debug_image_ && image_viz_ && last_image_) {
-    std::vector<cv::Point2d> endpoints_2d = {
-      cv::Point2d(msg->points[0].x, msg->points[0].y),
-      cv::Point2d(msg->points[1].x, msg->points[1].y)
-    };
+    if (msg->points.size() == 2) {
+      std::vector<cv::Point2d> endpoints_2d = {
+        cv::Point2d(msg->points[0].x, msg->points[0].y),
+        cv::Point2d(msg->points[1].x, msg->points[1].y)
+      };
 
-    image_viz_->visualize(
-        last_image_, endpoints_2d, endpoints_3d,
-        selected_3d, intrinsics, dvl_altitude_, camera_to_world);
+      image_viz_->visualize(
+          last_image_, endpoints_2d, endpoints_3d,
+          selected_3d, intrinsics, dvl_altitude_, camera_to_world);
+    } else {
+      RCLCPP_DEBUG(this->get_logger(),
+          "Skipping debug image visualization (requires 2 endpoints, got %zu)",
+          msg->points.size());
+    }
   }
 }
 

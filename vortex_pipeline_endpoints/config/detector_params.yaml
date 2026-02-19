@@ -3,6 +3,9 @@ pipeline_detector:
     # Enable debug visualization (publishes overlay image with detected endpoints)
     debug: true
 
+    # Endpoint detection method. Options: "furthest_points", "lowest_pixel"
+    detection_method: "lowest_pixel"
+
     # Topic names
     input_topic: "/pipeline/camera/segmentation_mask"
     output_topic: "/pipeline/endpoints"
