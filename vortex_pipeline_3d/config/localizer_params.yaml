@@ -12,8 +12,3 @@ pipeline_localizer:
     enable_debug_image: true
     debug_input_image_topic: "/pipeline/camera/segmentation_mask"
     debug_output_image_topic: "/pipeline/debug/localization_overlay"
-
-    # Future triangulation parameters (not implemented yet)
-    enable_triangulation: false
-    max_observations: 50
-    min_observations_for_triangulation: 5
