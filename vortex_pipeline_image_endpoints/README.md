@@ -5,6 +5,7 @@ Detects pipeline endpoints in 2D image space from a binary segmentation mask. Ou
 ## Overview
 
 This package takes a binary mask where the pipeline has been segmented, and finds the relevant endpoint(s) as pixel coordinates. It does not know anything about the physical world — all output is in image space.
+Normally used in conjunction with the **vortex_pipeline_position_estimator** package to find a 3D position of the pipeline.
 
 ```
 segmentation mask (image) → [vortex_pipeline_image_endpoints] → 2D pixel coordinates
