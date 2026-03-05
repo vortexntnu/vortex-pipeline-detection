@@ -23,7 +23,10 @@ find_package(OpenCV REQUIRED)
 # Core library (ROS-independent)
 add_library(image_endpoints_core
   src/core/detector.cpp
+  src/core/preprocessing.cpp
+  src/core/furthest_points.cpp
   src/core/lowest_pixel.cpp
+  src/core/debug.cpp
 )
 target_include_directories(image_endpoints_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

@@ -37,19 +37,26 @@ public:
       cv::Mat *debug_out = nullptr);
 
 private:
-  // Find two points furthest apart in binary mask using ConvexHull
-  // Returns pair of endpoints if successful, nullopt otherwise
-  static std::optional<std::pair<cv::Point, cv::Point>>
-      findFurthestPoints(const cv::Mat &binary);
-
-  // Find the centroid of the lowest (highest y-index) foreground row
-  // Returns nullopt if mask is empty
-  static std::optional<cv::Point> findLowestPixel(const cv::Mat &binary);
-
-  // Undistort a single pixel using camera distortion model
-  // Returns undistorted pixel coordinates
+  // --- Preprocessing ---
+  // Apply morphological close+open to remove noise and fill small holes
+  static cv::Mat cleanMask(const cv::Mat &mask);
+  // Return a binary mask of the largest connected foreground component
+  static std::optional<cv::Mat> largestComponent(const cv::Mat &mask);
+  // Undistort a single pixel using the camera distortion model
   static cv::Point2f undistortPoint(const cv::Point &pixel,
                                     const CameraIntrinsics &intrinsics);
+
+  // --- Detection methods ---
+  // Find two points furthest apart using convex hull
+  static std::optional<std::pair<cv::Point, cv::Point>>
+      findFurthestPoints(const cv::Mat &binary);
+  // Find the centroid of the lowest (highest y-index) foreground row
+  static std::optional<cv::Point> findLowestPixel(const cv::Mat &binary);
+
+  // --- Debug ---
+  // Draw detected endpoints onto debug_out, initialised from pipe_mask
+  static void drawEndpoints(cv::Mat &debug_out, const cv::Mat &pipe_mask,
+                             const PipelineEndpoints &endpoints);
 };
 
 } // namespace vortex_pipeline_image_endpoints
