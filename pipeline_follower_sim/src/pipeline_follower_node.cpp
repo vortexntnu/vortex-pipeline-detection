@@ -79,10 +79,6 @@ double angleBetweenLinesRad(
     if (cross < 0)
         angle = -angle;
 
-    if (std::abs(angle) > 1.7){
-      angle = -angle;
-    }
-
     // Update yaw
     yaw += angle;
 
@@ -94,6 +90,36 @@ double hight_regulator(double z_hight, double dvl_hight, double target_hight = 0
   auto change = target_hight - dvl_hight;
   auto new_hight = z_hight - change;
   return new_hight;
+}
+
+float maxY(const vortex_msgs::msg::LineSegment2D & line)
+{
+  return std::max(line.p0.y, line.p1.y);
+}
+
+void ensureHighestYFirst(vortex_msgs::msg::LineSegment2D & line)
+{
+  if (line.p1.y > line.p0.y) {
+    std::swap(line.p0, line.p1);
+  }
+}
+
+
+void sortTwoLines(
+  std::vector<vortex_msgs::msg::LineSegment2D> & lines)
+{
+  if (lines.size() != 2) {
+    return;
+  }
+
+  // Make sure p1 is the highest-Y point for each line
+  ensureHighestYFirst(lines[0]);
+  ensureHighestYFirst(lines[1]);
+
+  // Ensure the line with the highest Y overall is first
+  if (maxY(lines[1]) > maxY(lines[0])) {
+    std::swap(lines[0], lines[1]);
+  }
 }
 
 
@@ -184,6 +210,7 @@ private:
   {
     latest_lines_ = *msg;
     have_lines_ = true;
+    
   }
   bool isNewCorner(double x, double y) const
   {
@@ -247,13 +274,34 @@ private:
     }
     else if (lines.size() == 2)
     {
-      handleTwoLines(lines[0], lines[1]);
+      auto sorted_lines = lines;  // copy
+      sortTwoLines(sorted_lines);
+
+      handleTwoLines(sorted_lines[0], sorted_lines[1]);
     }
   }
 
   void sendOrDebugWaypoint(double x, double y, double z, double yaw,
                            bool overwrite_prior, bool take_priority, uint mode, double switching_threshold)
   {
+
+    constexpr double MIN_WP_DIST = 0.15;
+
+    if (have_prev_wp_) {
+      const double dx = x - prev_x_;
+      const double dy = y - prev_y_;
+      const double dz = z - prev_z_;
+      const double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+
+      if (dist < MIN_WP_DIST) {
+        RCLCPP_DEBUG_THROTTLE(
+          get_logger(), *get_clock(), 2000,
+          "Waypoint skipped (distance %.3f m < %.2f m)",
+          dist, MIN_WP_DIST);
+        return;
+      }
+    }
+
     // Build the waypoint once (used for both service + debug publish)
     vortex_msgs::msg::Waypoint wp;
     wp.pose.position.x = x;
@@ -262,13 +310,21 @@ private:
     wp.pose.orientation = quatFromYaw(yaw);
     wp.mode = mode;
 
+
     // If service is off, publish debug and return
     if (!client_->service_is_ready())
     {
       debug_wp_pub_->publish(wp);
+
+      prev_x_ = x;
+      prev_y_ = y;
+      prev_z_ = z;
+      have_prev_wp_ = true;
+
       RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                       "tick: sendt debug waypoint");
+                      "tick: sent debug waypoint");
       return;
+
     }
 
     // Otherwise send to service
@@ -284,6 +340,12 @@ private:
         try {
           auto resp = future.get();
           RCLCPP_WARN(this->get_logger(), "Sent waypoint: success=%d", resp->success);
+
+          // Record this waypoint as the last-used one
+          prev_x_ = wp.pose.position.x;
+          prev_y_ = wp.pose.position.y;
+          prev_z_ = wp.pose.position.z;
+          have_prev_wp_ = true;
 
           // If it failed logically, also publish it for debugging
           debug_wp_pub_->publish(wp);
@@ -378,7 +440,7 @@ private:
     cv::Point2f p2(line.p1.x, line.p1.y);
 
     // Take the farther endpoint as the "end"
-    cv::Point2f end = (cv::norm(p2) < cv::norm(p1)) ? p2 : p1;
+    cv::Point2f end = (p1.y < p2.y) ? p1 : p2;
 
     cv::Point2d groundXZ;
     double dist = 0.5;
@@ -387,15 +449,18 @@ private:
 
     const auto &XZ = *point_opt;   // XZ.x = X (left/right), XZ.y = Z (forward)
 
-    // Example mapping: world x += forward, world y += left/right
-    auto [xr, xy] =rotateXY(XZ.y, XZ.x, robot_yaw_);
-    auto [xc, yc] =rotateXY(camera_placment_x_, 0, robot_yaw_);
+    const auto &ground = *point_opt;
+    double right   = ground.x;
+    double forward = ground.y;
+
+    auto [dx, dy] = rotateXY(forward, right, robot_yaw_);
+    auto [xc, yc] = rotateXY(camera_placment_x_, 0, robot_yaw_);
     auto new_robot_z = hight_regulator(robot_a_, robot_z_);
 
-    double x_in_meters = robot_x_ + xr + xc;
-    double y_in_meters = robot_y_ + xy + yc;
+    double x_in_meters = robot_x_ + dx + xc;
+    double y_in_meters = robot_y_ + dy + yc;
 
-    sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_, true, false, vortex_msgs::msg::Waypoint::ONLY_POSITION, 0.3);
+    sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_, true, false, vortex_msgs::msg::Waypoint::FORWARD_HEADING, 0.3);
 
   }
 
@@ -426,7 +491,7 @@ private:
         avg_dist += cv::norm(cross_history_[i] - cross_history_[i + 1]);
       avg_dist /= 2.0;
       
-      if (avg_dist < 100.0 & cross.y < 540 )  // pixels threshold for "close proximity"
+      if (avg_dist < 100.0 & cross.y < 480 )  // pixels threshold for "close proximity"
       {
         double dist;
         auto point_opt = groundDistanceFromPixel(cv::Point2d(cross.x, cross.y), K_, robot_a_);
@@ -436,16 +501,15 @@ private:
           return;
         }
 
-        const auto &XZ = *point_opt; 
+        const auto &ground = *point_opt;
+        double right   = ground.x;
+        double forward = ground.y;
 
-        RCLCPP_WARN(this->get_logger(),  "ray.y = %.6f, pixel y = %.1f", ray[1], cross.y);
-
-
-        auto [xr, xy] =rotateXY(XZ.y, XZ.x, robot_yaw_);
+        auto [dx, dy] = rotateXY(forward, right, robot_yaw_);
         auto [xc, yc] =rotateXY(camera_placment_x_ ,0 , robot_yaw_);
 
-        double x_in_meters = robot_x_ + xr + xc;
-        double y_in_meters = robot_y_ + xy + yc;
+        double x_in_meters = robot_x_ + dx + xc;
+        double y_in_meters = robot_y_ + dy + yc;
 
 
         if (!isNewCorner(x_in_meters, y_in_meters))
@@ -611,6 +675,11 @@ private:
   vortex_msgs::msg::LineSegment2DArray latest_lines_;
   
   std::deque<cv::Point2f> cross_history_;
+  
+  bool have_prev_wp_ = false;
+  double prev_x_ = 0.0;
+  double prev_y_ = 0.0;
+  double prev_z_ = 0.0;
 
   rclcpp::Subscription<vortex_msgs::msg::LineSegment2DArray>::SharedPtr sub_line;
   rclcpp::Client<vortex_msgs::srv::SendWaypoints>::SharedPtr client_;

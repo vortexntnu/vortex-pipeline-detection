@@ -371,8 +371,6 @@ private:
     return L;
   }
 
-  bool second_ok = false;
-
   void imageCb(const sensor_msgs::msg::Image::ConstSharedPtr msg) {
     cv_bridge::CvImageConstPtr cv_ptr;
     try {
@@ -411,8 +409,9 @@ private:
     const int w = color.cols, h = color.rows;
 
     // Segment for first line
-    cv::Point p1a, p1b;
+    cv::Point p1a(0, 0), p1b(0, 0);
     bool first_ok = false;
+
 
     if (clippedSegmentFromPts(L1, pts, w, h, clip_to_object_, clip_max_dist_px_, p1a, p1b)) {
 
@@ -433,7 +432,8 @@ private:
 
   // ----- Second-pass search for a crossing line -----
   LineModel L2;
-  cv::Point p2a, p2b;
+  cv::Point p2a(0, 0), p2b(0, 0);
+  bool second_ok = false;
 
   int ix = 0;
   int iy = 0;
@@ -499,19 +499,21 @@ private:
   }
 
   void publishLines(const std_msgs::msg::Header& header,
-                    const cv::Point& p1a, const cv::Point& p1b,
-                    bool have_second,
-                    bool have_first,
-                    const cv::Point& p2a, const cv::Point& p2b)
+                  const cv::Point& p1a, const cv::Point& p1b,
+                  bool have_first,
+                  bool have_second,
+                  const cv::Point& p2a, const cv::Point& p2b)
   {
     vortex_msgs::msg::LineSegment2DArray arr;
     arr.header = header;
-    if (have_first){
+    if (have_first && p1a != p1b) {
       arr.lines.push_back(makeSeg(p1a, p1b));
     }
-    if (have_second) {
+
+    if (have_second && p2a != p2b) {
       arr.lines.push_back(makeSeg(p2a, p2b));
     }
+
 
     pub_lines_->publish(arr);
   }
