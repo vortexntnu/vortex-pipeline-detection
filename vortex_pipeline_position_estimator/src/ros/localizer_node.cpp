@@ -68,7 +68,7 @@ LocalizerNode::LocalizerNode(const rclcpp::NodeOptions &options)
     RCLCPP_INFO(this->get_logger(), "Debug image visualization enabled");
   }
 
-  RCLCPP_INFO(this->get_logger(), "Pipeline 3D localizer node started");
+  RCLCPP_INFO(this->get_logger(), "Pipeline position estimator node started");
 }
 
 // ============================================================================
@@ -121,7 +121,7 @@ void LocalizerNode::endpointsCallback(
   std::vector<cv::Point3d> endpoints_3d;
 
   if (msg->points.size() == 1) {
-    // Single endpoint (lowest_pixel method) — use directly as pipeline start
+    // Single endpoint — use directly as pipeline start
     selected_3d = PipelineGeometry::backprojectGroundPlane(
         static_cast<int>(msg->points[0].x),
         static_cast<int>(msg->points[0].y),

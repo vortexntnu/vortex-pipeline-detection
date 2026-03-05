@@ -90,7 +90,7 @@ cv::Point3d PipelineGeometry::backprojectGroundPlane(
     // Intersect ray with ground plane in WORLD frame (NED convention)
     // Ground plane: Z_world = altitude (below camera at Z=0)
     // NED frame: X=North (forward), Y=East (right), Z=Down
-    // Ray: P = t * (ray_x_world, ray_y_world, ray_z_world)
+    // Ray: P = camera_pos + t * (ray_x_world, ray_y_world, ray_z_world)
     // Solve: t * ray_z_world = altitude
 
     if (std::abs(ray_z_world) < 1e-6) {

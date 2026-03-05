@@ -25,7 +25,7 @@ public:
   // altitude: DVL height above ground (meters, positive)
   // camera_to_world: Full 6-DOF transform from camera frame to world frame (from tf2)
   //                  Includes rotation (roll, pitch, yaw) and translation
-  // Returns: 3D point in world frame (X=right, Y=down/altitude, Z=forward)
+  // Returns: 3D point in world frame (NED: X=North, Y=East, Z=Down)
   static cv::Point3d backprojectGroundPlane(
       int u, int v,
       double altitude,
