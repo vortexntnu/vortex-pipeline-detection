@@ -66,8 +66,7 @@ class LinedetectorPipe {
         morph_close_size_ = params.morph_close_size;
         dist_thresh_ = params.dist_thresh;
 
-        randsac_ =
-            RANDSAC(n_, k_, t_, 2, removeT_, finalScorethresh_, minTurnAngle_);
+        randsac_ = RANDSAC(n_, k_, t_, 2, removeT_, finalScorethresh_, minTurnAngle_);
     }
 };
 

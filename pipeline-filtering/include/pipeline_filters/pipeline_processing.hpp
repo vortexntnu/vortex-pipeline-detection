@@ -38,9 +38,7 @@ void apply_filter(const std::string& filter,
 /**
  * No filter, just copy the image
  */
-void no_filter(const FilterParams& params,
-               const cv::Mat& original,
-               cv::Mat& output);
+void no_filter(const FilterParams& params, const cv::Mat& original, cv::Mat& output);
 
 /**
  * A filter based on Otsu's method

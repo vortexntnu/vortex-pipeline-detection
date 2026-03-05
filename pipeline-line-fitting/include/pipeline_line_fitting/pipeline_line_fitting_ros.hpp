@@ -16,8 +16,7 @@ class PipelineLineFittingNode : public rclcpp::Node {
 
    private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr imageSub_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr
-        imageVisualizationPub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr imageVisualizationPub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr poseArrayPub_;
 
     LinedetectorPipe pipeline_;

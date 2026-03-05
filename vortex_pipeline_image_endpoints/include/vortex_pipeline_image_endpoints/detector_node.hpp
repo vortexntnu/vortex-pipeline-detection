@@ -8,19 +8,19 @@
 namespace vortex_pipeline_image_endpoints {
 
 class DetectorNode : public rclcpp::Node {
-public:
-  DetectorNode();
+   public:
+    DetectorNode();
 
-private:
-  void maskCallback(const sensor_msgs::msg::Image::SharedPtr msg);
+   private:
+    void maskCallback(const sensor_msgs::msg::Image::SharedPtr msg);
 
-  bool debug_;
-  DetectionMethod detection_method_;
+    bool debug_;
+    DetectionMethod detection_method_;
 
-  // Publishers and subscribers
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_sub_;
-  rclcpp::Publisher<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_pub_;
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
+    // Publishers and subscribers
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_sub_;
+    rclcpp::Publisher<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
 };
 
-} // namespace vortex_pipeline_image_endpoints
+}  // namespace vortex_pipeline_image_endpoints

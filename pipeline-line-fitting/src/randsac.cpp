@@ -31,17 +31,15 @@ void LinearRegressor::fit(const arma::mat& X, const arma::mat& y) {
 
     } else {
         // Solve the normal equation
-        params =
-            arma::conv_to<std::vector<double>>::from(solve(XtX, X_.t() * y));
+        params = arma::conv_to<std::vector<double>>::from(solve(XtX, X_.t() * y));
         vertical = false;
     }
 }
 
 arma::mat LinearRegressor::predict(const arma::mat& X) {
     if (vertical) {
-        return arma::ones(X.n_rows) *
-               params.at(0);  // the vertical line will return x-predections,
-                              // instead of y-predictions
+        return arma::ones(X.n_rows) * params.at(0);  // the vertical line will return
+                                                     // x-predections, instead of y-predictions
     }
 
     arma::mat X_ = join_horiz(arma::ones(X.n_rows, 1), X);
@@ -58,12 +56,9 @@ RANDSAC::~RANDSAC() {
     reset();
 }
 
-bool RANDSAC::legalAlpha(double alpha,
-                         const std::vector<Line>& lines,
-                         bool flipped) {
+bool RANDSAC::legalAlpha(double alpha, const std::vector<Line>& lines, bool flipped) {
     for (int i = 0; i < lines.size(); i++) {
-        if (abs(atan(lines[i].slope) - atan(alpha) + flipped * 3.14) <
-            turnAngle_) {
+        if (abs(atan(lines[i].slope) - atan(alpha) + flipped * 3.14) < turnAngle_) {
             return false;
         }
     }
@@ -91,8 +86,7 @@ void RANDSAC::fit(const arma::mat& X,
         shuffle(ids.begin(), ids.end(), rng);
 
         std::vector<int> maybe_inliers(ids.begin(), ids.begin() + n_);
-        arma::uvec maybeInliersUvec =
-            arma::conv_to<arma::uvec>::from(maybe_inliers);
+        arma::uvec maybeInliersUvec = arma::conv_to<arma::uvec>::from(maybe_inliers);
 
         LinearRegressor maybe_model = model_;
         maybe_model.fit(X.rows(maybeInliersUvec), y.rows(maybeInliersUvec));
@@ -100,8 +94,8 @@ void RANDSAC::fit(const arma::mat& X,
         y_pred.clear();
         thresholded.clear();
 
-        y_pred = maybe_model.predict(X.rows(arma::conv_to<arma::uvec>::from(
-            std::vector<int>(ids.begin() + n_, ids.end()))));
+        y_pred = maybe_model.predict(X.rows(
+            arma::conv_to<arma::uvec>::from(std::vector<int>(ids.begin() + n_, ids.end()))));
         thresholded = loss_(y.rows(arma::conv_to<arma::uvec>::from(
                                 std::vector<int>(ids.begin() + n_, ids.end()))),
                             y_pred) < t_;
@@ -113,15 +107,12 @@ void RANDSAC::fit(const arma::mat& X,
             }
         }
 
-        if (inlier_ids.size() > 10 &&
-            legalAlpha(maybe_model.params[1], lines, flipped)) {
+        if (inlier_ids.size() > 10 && legalAlpha(maybe_model.params[1], lines, flipped)) {
             failed_ = false;
 
             std::vector<int> inlier_points = maybe_inliers;
-            arma::uvec inlierIdsUvec =
-                arma::conv_to<arma::uvec>::from(inlier_ids);
-            inlier_points.insert(inlier_points.end(), inlier_ids.begin(),
-                                 inlier_ids.end());
+            arma::uvec inlierIdsUvec = arma::conv_to<arma::uvec>::from(inlier_ids);
+            inlier_points.insert(inlier_points.end(), inlier_ids.begin(), inlier_ids.end());
 
             LinearRegressor better_model = model_;
             better_model.fit(X.rows(inlierIdsUvec), y.rows(inlierIdsUvec));
@@ -133,24 +124,19 @@ void RANDSAC::fit(const arma::mat& X,
 
                 // find points that are inliers to remove
                 arma::umat rem_thresholded;
-                arma::mat rem_y_pred =
-                    better_model.predict(X.rows(arma::conv_to<arma::uvec>::from(
-                        std::vector<int>(ids.begin() + n_, ids.end()))));
+                arma::mat rem_y_pred = better_model.predict(X.rows(arma::conv_to<arma::uvec>::from(
+                    std::vector<int>(ids.begin() + n_, ids.end()))));
                 arma::mat rem_x_pred;
-                rem_thresholded =
-                    loss_(y.rows(arma::conv_to<arma::uvec>::from(
-                              std::vector<int>(ids.begin() + n_, ids.end()))),
-                          rem_y_pred) < remT_;
+                rem_thresholded = loss_(y.rows(arma::conv_to<arma::uvec>::from(
+                                            std::vector<int>(ids.begin() + n_, ids.end()))),
+                                        rem_y_pred) < remT_;
 
                 if (better_model.vertical) {
-                    rem_x_pred = better_model.predict(
-                        y.rows(arma::conv_to<arma::uvec>::from(
-                            std::vector<int>(ids.begin() + n_, ids.end()))));
-                    rem_thresholded =
-                        loss_(
-                            X.rows(arma::conv_to<arma::uvec>::from(
-                                std::vector<int>(ids.begin() + n_, ids.end()))),
-                            rem_x_pred) < remT_;
+                    rem_x_pred = better_model.predict(y.rows(arma::conv_to<arma::uvec>::from(
+                        std::vector<int>(ids.begin() + n_, ids.end()))));
+                    rem_thresholded = loss_(X.rows(arma::conv_to<arma::uvec>::from(
+                                                std::vector<int>(ids.begin() + n_, ids.end()))),
+                                            rem_x_pred) < remT_;
                 }
 
                 rempointids.clear();

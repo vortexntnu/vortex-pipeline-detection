@@ -7,6 +7,6 @@ pipeline_image_endpoints:
     input_topic: "/pipeline/camera/segmentation_mask"
     output_topic: "/pipeline/endpoints"
     debug_topic: "/pipeline/detector/debug_image"
-    
+
     # Enable debug visualization (publishes overlay image with detected endpoints)
     debug: true

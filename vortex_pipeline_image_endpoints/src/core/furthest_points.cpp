@@ -2,17 +2,18 @@
 
 namespace vortex_pipeline_image_endpoints {
 
-std::optional<std::pair<cv::Point, cv::Point>>
-PipelineDetector::findFurthestPoints(const cv::Mat &binary) {
+std::optional<std::pair<cv::Point, cv::Point>> PipelineDetector::findFurthestPoints(
+    const cv::Mat& binary) {
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(binary.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     if (contours.empty()) return std::nullopt;
 
-    auto largest_it = std::max_element(contours.begin(), contours.end(),
-        [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
-            return cv::contourArea(a) < cv::contourArea(b);
-        });
+    auto largest_it =
+        std::max_element(contours.begin(), contours.end(),
+                         [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
+                             return cv::contourArea(a) < cv::contourArea(b);
+                         });
 
     std::vector<cv::Point> hull;
     cv::convexHull(*largest_it, hull);

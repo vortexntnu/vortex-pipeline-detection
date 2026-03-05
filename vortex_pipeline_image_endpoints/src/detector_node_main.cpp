@@ -1,5 +1,5 @@
-#include "vortex_pipeline_image_endpoints/detector_node.hpp"
 #include <rclcpp/rclcpp.hpp>
+#include "vortex_pipeline_image_endpoints/detector_node.hpp"
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);

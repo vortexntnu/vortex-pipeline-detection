@@ -26,8 +26,7 @@ class PipelineFilteringNode : public rclcpp::Node {
      */
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
 
-    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr
-        optimal_threshold_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr optimal_threshold_publisher_;
 
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr auto_gamma_publisher_;
 

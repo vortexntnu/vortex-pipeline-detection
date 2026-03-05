@@ -1,7 +1,7 @@
 #include "vortex_pipeline_image_endpoints/detector_node.hpp"
-#include "vortex_pipeline_image_endpoints/detector.hpp"
 #include <cv_bridge/cv_bridge.h>
 #include <vortex_msgs/msg/point2_d.hpp>
+#include "vortex_pipeline_image_endpoints/detector.hpp"
 
 namespace vortex_pipeline_image_endpoints {
 
@@ -28,16 +28,13 @@ DetectorNode::DetectorNode() : Node("pipeline_image_endpoints") {
 
     // Subscriptions
     mask_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        input_topic, qos,
-        std::bind(&DetectorNode::maskCallback, this, std::placeholders::_1));
+        input_topic, qos, std::bind(&DetectorNode::maskCallback, this, std::placeholders::_1));
 
     // Publishers
-    endpoints_pub_ = this->create_publisher<vortex_msgs::msg::Point2DArray>(
-        output_topic, qos);
+    endpoints_pub_ = this->create_publisher<vortex_msgs::msg::Point2DArray>(output_topic, qos);
 
     if (debug_) {
-        debug_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
-            debug_topic, qos);
+        debug_pub_ = this->create_publisher<sensor_msgs::msg::Image>(debug_topic, qos);
     }
 
     RCLCPP_INFO(this->get_logger(), "Pipeline image endpoints node started");
@@ -57,8 +54,8 @@ void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         auto cv_ptr = cv_bridge::toCvShare(msg, "mono8");
 
         cv::Mat debug_vis;
-        auto endpoints = PipelineDetector::findPipelineEndpoints(
-            cv_ptr->image, detection_method_, debug_ ? &debug_vis : nullptr);
+        auto endpoints = PipelineDetector::findPipelineEndpoints(cv_ptr->image, detection_method_,
+                                                                 debug_ ? &debug_vis : nullptr);
 
         if (!endpoints) {
             RCLCPP_WARN(this->get_logger(), "No endpoints detected");
@@ -67,11 +64,11 @@ void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
 
         if (endpoints->endpoint2.has_value()) {
             RCLCPP_DEBUG(this->get_logger(), "Found endpoints: (%d,%d) and (%d,%d)",
-                        endpoints->endpoint1.x, endpoints->endpoint1.y,
-                        endpoints->endpoint2->x, endpoints->endpoint2->y);
+                         endpoints->endpoint1.x, endpoints->endpoint1.y, endpoints->endpoint2->x,
+                         endpoints->endpoint2->y);
         } else {
-            RCLCPP_DEBUG(this->get_logger(), "Found endpoint: (%d,%d)",
-                        endpoints->endpoint1.x, endpoints->endpoint1.y);
+            RCLCPP_DEBUG(this->get_logger(), "Found endpoint: (%d,%d)", endpoints->endpoint1.x,
+                         endpoints->endpoint1.y);
         }
 
         vortex_msgs::msg::Point2DArray endpoints_msg;
@@ -96,9 +93,9 @@ void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
             auto debug_msg = cv_bridge::CvImage(msg->header, "bgr8", debug_vis).toImageMsg();
             debug_pub_->publish(*debug_msg);
         }
-    } catch (const cv_bridge::Exception &e) {
+    } catch (const cv_bridge::Exception& e) {
         RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
     }
 }
 
-} // namespace vortex_pipeline_image_endpoints
+}  // namespace vortex_pipeline_image_endpoints

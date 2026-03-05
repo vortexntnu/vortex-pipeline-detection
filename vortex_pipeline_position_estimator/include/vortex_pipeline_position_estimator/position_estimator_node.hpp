@@ -1,29 +1,29 @@
 #pragma once
 
-#include "vortex_pipeline_position_estimator/backproject_ground_plane.hpp"
-#include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <memory>
+#include <opencv2/core.hpp>
+#include <optional>
+#include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include <shared_mutex>
 #include <std_msgs/msg/float64.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <vector>
 #include <vortex_msgs/msg/landmark_array.hpp>
 #include <vortex_msgs/msg/landmark_type_class.hpp>
 #include <vortex_msgs/msg/point2_d_array.hpp>
-#include <opencv2/core.hpp>
-#include <optional>
-#include <shared_mutex>
-#include <memory>
-#include <vector>
+#include "vortex_pipeline_position_estimator/backproject_ground_plane.hpp"
 
 namespace vortex_pipeline_position_estimator {
 
 class PositionEstimatorNode : public rclcpp::Node {
-public:
+   public:
     PositionEstimatorNode();
 
-private:
+   private:
     // Callbacks
     void endpointsCallback(const vortex_msgs::msg::Point2DArray::SharedPtr msg);
     void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
@@ -32,8 +32,9 @@ private:
     // Helper methods
     std::optional<std::pair<double, CameraIntrinsics>> snapshotData();
     std::optional<geometry_msgs::msg::TransformStamped> lookupCameraToWorld(
-        const std::string& frame_id, const rclcpp::Time& stamp);
-// ROS interfaces
+        const std::string& frame_id,
+        const rclcpp::Time& stamp);
+    // ROS interfaces
     rclcpp::Subscription<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr caminfo_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr dvl_sub_;
@@ -53,4 +54,4 @@ private:
     bool apply_undistortion_{true};
 };
 
-} // namespace vortex_pipeline_position_estimator
+}  // namespace vortex_pipeline_position_estimator

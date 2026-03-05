@@ -13,4 +13,3 @@ pipeline_position_estimator:
 
     # Whether to apply lens distortion correction before backprojection
     apply_undistortion: true
-

@@ -59,16 +59,14 @@ void otsu_segmentation_filter(const FilterParams& params,
                               const cv::Mat& original,
                               cv::Mat& filtered) {
     bool gamma_auto_correction = params.otsu.gamma_auto_correction;
-    double gamma_auto_correction_weight =
-        params.otsu.gamma_auto_correction_weight;
+    double gamma_auto_correction_weight = params.otsu.gamma_auto_correction_weight;
 
     bool otsu_segmentation = params.otsu.otsu_segmentation;
 
     cv::cvtColor(original, filtered, cv::COLOR_BGR2GRAY);
 
     if (gamma_auto_correction) {
-        double autoGamma =
-            calculateAutoGamma(filtered) * gamma_auto_correction_weight;
+        double autoGamma = calculateAutoGamma(filtered) * gamma_auto_correction_weight;
 
         applyGammaCorrection(filtered, autoGamma);
     }
@@ -79,8 +77,7 @@ void otsu_segmentation_filter(const FilterParams& params,
         float range[] = {0, 256};
         const float* histRange = {range};
         cv::Mat hist;
-        calcHist(&filtered, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange,
-                 true, false);
+        calcHist(&filtered, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange, true, false);
 
         // Normalize histogram to get probabilities
         hist /= filtered.total();
@@ -104,10 +101,8 @@ void otsu_segmentation_filter(const FilterParams& params,
                 mu_bg += i * p[i];
             }
 
-            if (omega_fg > 0)
-                mu_fg /= omega_fg;
-            if (omega_bg > 0)
-                mu_bg /= omega_bg;
+            if (omega_fg > 0) mu_fg /= omega_fg;
+            if (omega_bg > 0) mu_bg /= omega_bg;
 
             // Calculate sigma squared and store in list
             sigma2_list[th] = omega_fg * omega_bg * pow(mu_fg - mu_bg, 2);
@@ -115,13 +110,11 @@ void otsu_segmentation_filter(const FilterParams& params,
 
         // Find the threshold corresponding to the maximum sigma squared
         int optimalThreshold =
-            std::max_element(sigma2_list.begin(), sigma2_list.end()) -
-            sigma2_list.begin();
+            std::max_element(sigma2_list.begin(), sigma2_list.end()) - sigma2_list.begin();
 
         // Apply the threshold to the image
         cv::Mat binaryImage;
-        cv::threshold(filtered, binaryImage, optimalThreshold, 255,
-                      cv::THRESH_BINARY);
+        cv::threshold(filtered, binaryImage, optimalThreshold, 255, cv::THRESH_BINARY);
 
         // Apply erosion followed by dilation (opening)
         cv::Mat openedImage;
@@ -133,29 +126,25 @@ void otsu_segmentation_filter(const FilterParams& params,
 
         int dilutionSize = 45;
         cv::Mat dilutionKernel = getStructuringElement(
-            cv::MORPH_CROSS,
-            cv::Size(2 * dilutionSize + 1, 2 * dilutionSize + 1),
+            cv::MORPH_CROSS, cv::Size(2 * dilutionSize + 1, 2 * dilutionSize + 1),
             cv::Point(dilutionSize, dilutionSize));
         cv::dilate(openedImage, openedImage, dilutionKernel);
 
         int erosionSize2 = 35;
         cv::Mat erosionKernel2 = getStructuringElement(
-            cv::MORPH_CROSS,
-            cv::Size(2 * erosionSize2 + 1, 2 * erosionSize2 + 1),
+            cv::MORPH_CROSS, cv::Size(2 * erosionSize2 + 1, 2 * erosionSize2 + 1),
             cv::Point(erosionSize2, erosionSize2));
         cv::erode(openedImage, openedImage, erosionKernel2);
 
         dilutionSize = 10;
         dilutionKernel = getStructuringElement(
-            cv::MORPH_ELLIPSE,
-            cv::Size(2 * dilutionSize + 1, 2 * dilutionSize + 1),
+            cv::MORPH_ELLIPSE, cv::Size(2 * dilutionSize + 1, 2 * dilutionSize + 1),
             cv::Point(dilutionSize, dilutionSize));
         cv::dilate(openedImage, openedImage, dilutionKernel);
 
         erosionSize2 = 10;
         erosionKernel2 = getStructuringElement(
-            cv::MORPH_RECT,
-            cv::Size(2 * erosionSize2 + 1, 2 * erosionSize2 + 1),
+            cv::MORPH_RECT, cv::Size(2 * erosionSize2 + 1, 2 * erosionSize2 + 1),
             cv::Point(erosionSize2, erosionSize2));
         cv::erode(openedImage, openedImage, erosionKernel2);
 
