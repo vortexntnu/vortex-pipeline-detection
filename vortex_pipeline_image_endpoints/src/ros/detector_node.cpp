@@ -6,6 +6,8 @@
 namespace vortex_pipeline_image_endpoints {
 
 DetectorNode::DetectorNode() : Node("pipeline_image_endpoints") {
+    auto qos = rclcpp::QoS(1).best_effort();
+
     // Parameters
     auto input_topic = this->declare_parameter<std::string>("input_topic");
     auto output_topic = this->declare_parameter<std::string>("output_topic");
@@ -24,29 +26,28 @@ DetectorNode::DetectorNode() : Node("pipeline_image_endpoints") {
         detection_method_ = DetectionMethod::FURTHEST_POINTS;
     }
 
-    // Subscribers
+    // Subscriptions
     mask_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        input_topic,
-        rclcpp::QoS(1).best_effort(),
+        input_topic, qos,
         std::bind(&DetectorNode::maskCallback, this, std::placeholders::_1));
 
     // Publishers
     endpoints_pub_ = this->create_publisher<vortex_msgs::msg::Point2DArray>(
-        output_topic, 10);
+        output_topic, qos);
 
     if (debug_) {
-      debug_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
-          debug_topic, rclcpp::QoS(1).best_effort());
+        debug_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
+            debug_topic, qos);
     }
 
-  RCLCPP_INFO(this->get_logger(), "Pipeline image endpoints node started");
-  RCLCPP_INFO(this->get_logger(), "  Input topic: %s", input_topic.c_str());
-  RCLCPP_INFO(this->get_logger(), "  Output topic: %s", output_topic.c_str());
-  RCLCPP_INFO(this->get_logger(), "  Detection method: %s", method_str.c_str());
-  RCLCPP_INFO(this->get_logger(), "  Debug visualization: %s", debug_ ? "enabled" : "disabled");
-  if (debug_) {
-    RCLCPP_INFO(this->get_logger(), "  Debug topic: %s", debug_topic.c_str());
-  }
+    RCLCPP_INFO(this->get_logger(), "Pipeline image endpoints node started");
+    RCLCPP_INFO(this->get_logger(), "  Input topic: %s", input_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Output topic: %s", output_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Detection method: %s", method_str.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Debug visualization: %s", debug_ ? "enabled" : "disabled");
+    if (debug_) {
+        RCLCPP_INFO(this->get_logger(), "  Debug topic: %s", debug_topic.c_str());
+    }
 }
 
 void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {

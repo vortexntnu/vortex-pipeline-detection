@@ -1,4 +1,6 @@
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -10,11 +12,14 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument('log_level', default_value='info',
+                              description='ROS log level (debug, info, warn, error)'),
         Node(
             package='vortex_pipeline_image_endpoints',
             executable='image_endpoints_node',
             name='pipeline_image_endpoints',
             parameters=[config_path],
+            arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
             output='screen'
         )
     ])
