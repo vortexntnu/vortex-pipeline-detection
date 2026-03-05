@@ -8,7 +8,6 @@
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
-#include <shared_mutex>
 #include <std_msgs/msg/float64.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <vector>
@@ -30,8 +29,7 @@ class PositionEstimatorNode : public rclcpp::Node {
     void dvlCallback(const std_msgs::msg::Float64::SharedPtr msg);
 
     // Helper methods
-    std::optional<std::pair<double, CameraIntrinsics>> snapshotData();
-    std::optional<geometry_msgs::msg::TransformStamped> lookupCameraToWorld(
+std::optional<geometry_msgs::msg::TransformStamped> lookupCameraToWorld(
         const std::string& frame_id,
         const rclcpp::Time& stamp);
     // ROS interfaces
@@ -40,10 +38,8 @@ class PositionEstimatorNode : public rclcpp::Node {
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr dvl_sub_;
     rclcpp::Publisher<vortex_msgs::msg::LandmarkArray>::SharedPtr landmark_pub_;
 
-    // Shared data (protected by mutex)
     std::optional<CameraIntrinsics> intrinsics_;
     double dvl_altitude_{0.0};
-    std::shared_mutex data_mutex_;
 
     // tf2 for frame transformations
     std::unique_ptr<tf2_ros::Buffer> tf2_buffer_;

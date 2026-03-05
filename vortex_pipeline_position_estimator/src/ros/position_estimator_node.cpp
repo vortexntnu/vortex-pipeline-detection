@@ -48,13 +48,18 @@ void PositionEstimatorNode::endpointsCallback(
         return;
     }
 
-    auto snapshot = snapshotData();
-    if (!snapshot) {
+    if (dvl_altitude_ <= 0.0) {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "No valid DVL altitude data available");
         return;
     }
-    auto [dvl_altitude, intrinsics] = *snapshot;
+    if (!intrinsics_) {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "No camera info available");
+        return;
+    }
 
-    auto transform = lookupCameraToWorld(intrinsics.frame_id, msg->header.stamp);
+    auto transform = lookupCameraToWorld(intrinsics_->frame_id, msg->header.stamp);
     if (!transform) {
         return;
     }
@@ -64,8 +69,8 @@ void PositionEstimatorNode::endpointsCallback(
     endpoints_3d.reserve(msg->points.size());
     for (const auto& pt : msg->points) {
         endpoints_3d.push_back(
-            backprojectGroundPlane(static_cast<int>(pt.x), static_cast<int>(pt.y), dvl_altitude,
-                                   intrinsics, *transform, apply_undistortion_));
+            backprojectGroundPlane(static_cast<int>(pt.x), static_cast<int>(pt.y), dvl_altitude_,
+                                   *intrinsics_, *transform, apply_undistortion_));
     }
 
     // Select endpoint closest to 3D origin as pipeline start
@@ -89,30 +94,13 @@ void PositionEstimatorNode::endpointsCallback(
     landmark_msg.landmarks.at(0).pose.pose.orientation.w = 1.0;
     landmark_pub_->publish(landmark_msg);
 
-    RCLCPP_DEBUG(this->get_logger(), "DVL altitude: %.3f m", dvl_altitude);
+    RCLCPP_DEBUG(this->get_logger(), "DVL altitude: %.3f m", dvl_altitude_);
     for (size_t i = 0; i < endpoints_3d.size(); ++i) {
         RCLCPP_DEBUG(this->get_logger(), "  EP%zu: (%.3f, %.3f, %.3f) m [odom]", i + 1,
                      endpoints_3d[i].x, endpoints_3d[i].y, endpoints_3d[i].z);
     }
     RCLCPP_DEBUG(this->get_logger(), "  Selected: (%.3f, %.3f, %.3f) m [odom]", selected_3d.x,
                  selected_3d.y, selected_3d.z);
-}
-
-std::optional<std::pair<double, CameraIntrinsics>> PositionEstimatorNode::snapshotData() {
-    std::shared_lock<std::shared_mutex> lock(data_mutex_);
-
-    if (dvl_altitude_ <= 0.0) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "No valid DVL altitude data available");
-        return std::nullopt;
-    }
-    if (!intrinsics_) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "No camera info available");
-        return std::nullopt;
-    }
-
-    return std::make_pair(dvl_altitude_, *intrinsics_);
 }
 
 std::optional<geometry_msgs::msg::TransformStamped> PositionEstimatorNode::lookupCameraToWorld(
@@ -132,8 +120,6 @@ std::optional<geometry_msgs::msg::TransformStamped> PositionEstimatorNode::looku
 }
 
 void PositionEstimatorNode::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
-    std::unique_lock<std::shared_mutex> lock(data_mutex_);
-
     if (!intrinsics_) {
         CameraIntrinsics intrinsics;
         // msg->k is row-major [fx 0 cx / 0 fy cy / 0 0 1]
@@ -150,7 +136,6 @@ void PositionEstimatorNode::cameraInfoCallback(const sensor_msgs::msg::CameraInf
 }
 
 void PositionEstimatorNode::dvlCallback(const std_msgs::msg::Float64::SharedPtr msg) {
-    std::unique_lock<std::shared_mutex> lock(data_mutex_);
     dvl_altitude_ = msg->data;
     RCLCPP_DEBUG(this->get_logger(), "Received DVL altitude: %.3f m", dvl_altitude_);
 }
