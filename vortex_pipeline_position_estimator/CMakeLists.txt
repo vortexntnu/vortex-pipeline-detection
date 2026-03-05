@@ -22,7 +22,6 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(cv_bridge REQUIRED)
 
 # Geometry library (uses tf2 for coordinate transformations)
 add_library(position_estimator_geometry
@@ -39,14 +38,13 @@ ament_target_dependencies(position_estimator_geometry
 
 # ROS node executable
 add_executable(position_estimator_node
-  src/ros/localizer_node.cpp
-  src/localizer_node_main.cpp
-  src/visualization/image_overlay.cpp
+  src/ros/position_estimator_node.cpp
+  src/position_estimator_node_main.cpp
 )
 target_link_libraries(position_estimator_node position_estimator_geometry ${OpenCV_LIBS})
 ament_target_dependencies(position_estimator_node
   rclcpp sensor_msgs geometry_msgs std_msgs vortex_msgs
-  cv_bridge tf2 tf2_ros tf2_geometry_msgs
+  tf2 tf2_ros tf2_geometry_msgs
 )
 
 # Install targets

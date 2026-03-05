@@ -8,7 +8,9 @@ pipeline_position_estimator:
     # Output topics
     publish_topic: "/orca/landmarks"
 
-    # Visualization (debug)
-    enable_debug_image: true
-    debug_input_image_topic: "/pipeline/camera/segmentation_mask"
-    debug_output_image_topic: "/pipeline/debug/localization_overlay"
+    # Transform lookup timeout in milliseconds
+    transform_timeout_ms: 100
+
+    # Whether to apply lens distortion correction before backprojection
+    apply_undistortion: true
+

@@ -3,8 +3,8 @@
 <package format="3">
   <name>vortex_pipeline_position_estimator</name>
   <version>1.0.0</version>
-  <description>Estimates pipeline position in world frame from 2D image endpoints using DVL altitude and camera geometry (runs on Raspberry Pi)</description>
-  <maintainer email="vortex@ntnu.no">Vortex NTNU</maintainer>
+  <description>Estimates pipeline position in world frame from 2D image endpoints using DVL altitude and camera geometry</description>
+  <maintainer email="madsjorgen.be@gmail.com">Vortex NTNU</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -21,7 +21,6 @@
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
   <depend>vortex_msgs</depend>
-  <depend>cv_bridge</depend>
 
   <test_depend>ament_lint_auto</test_depend>
 

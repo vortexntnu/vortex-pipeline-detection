@@ -1,0 +1,56 @@
+#pragma once
+
+#include "vortex_pipeline_position_estimator/backproject_ground_plane.hpp"
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
+#include <std_msgs/msg/float64.hpp>
+#include <vortex_msgs/msg/landmark_array.hpp>
+#include <vortex_msgs/msg/landmark_type_class.hpp>
+#include <vortex_msgs/msg/point2_d_array.hpp>
+#include <opencv2/core.hpp>
+#include <optional>
+#include <shared_mutex>
+#include <memory>
+#include <vector>
+
+namespace vortex_pipeline_position_estimator {
+
+class PositionEstimatorNode : public rclcpp::Node {
+public:
+    PositionEstimatorNode();
+
+private:
+    // Callbacks
+    void endpointsCallback(const vortex_msgs::msg::Point2DArray::SharedPtr msg);
+    void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
+    void dvlCallback(const std_msgs::msg::Float64::SharedPtr msg);
+
+    // Helper methods
+    std::optional<std::pair<double, CameraIntrinsics>> snapshotData();
+    std::optional<geometry_msgs::msg::TransformStamped> lookupCameraToWorld(
+        const std::string& frame_id, const rclcpp::Time& stamp);
+// ROS interfaces
+    rclcpp::Subscription<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr caminfo_sub_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr dvl_sub_;
+    rclcpp::Publisher<vortex_msgs::msg::LandmarkArray>::SharedPtr landmark_pub_;
+
+    // Shared data (protected by mutex)
+    std::optional<CameraIntrinsics> intrinsics_;
+    double dvl_altitude_{0.0};
+    std::shared_mutex data_mutex_;
+
+    // tf2 for frame transformations
+    std::unique_ptr<tf2_ros::Buffer> tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+
+    // Parameters
+    int transform_timeout_ms_{100};
+    bool apply_undistortion_{true};
+};
+
+} // namespace vortex_pipeline_position_estimator
