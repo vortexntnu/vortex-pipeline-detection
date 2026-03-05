@@ -2,23 +2,11 @@
 
 #include <opencv2/opencv.hpp>
 #include <optional>
-#include <string>
 #include <vector>
 
 namespace vortex_pipeline_image_endpoints {
 
 enum class DetectionMethod { FURTHEST_POINTS, LOWEST_PIXEL };
-
-// Camera calibration parameters including distortion
-struct CameraIntrinsics {
-  double fx = 0.0;
-  double fy = 0.0;
-  double cx = 0.0;
-  double cy = 0.0;
-  std::vector<double> D;      // Distortion coefficients [k1, k2, p1, p2, k3]
-  std::string frame_id;
-  bool has_distortion = false;
-};
 
 // Result of endpoint detection
 struct PipelineEndpoints {
@@ -42,10 +30,6 @@ private:
   static cv::Mat cleanMask(const cv::Mat &mask);
   // Return a binary mask of the largest connected foreground component
   static std::optional<cv::Mat> largestComponent(const cv::Mat &mask);
-  // Undistort a single pixel using the camera distortion model
-  static cv::Point2f undistortPoint(const cv::Point &pixel,
-                                    const CameraIntrinsics &intrinsics);
-
   // --- Detection methods ---
   // Find two points furthest apart using convex hull
   static std::optional<std::pair<cv::Point, cv::Point>>

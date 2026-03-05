@@ -28,24 +28,5 @@ std::optional<cv::Mat> PipelineDetector::largestComponent(const cv::Mat &mask) {
     return (labels == largestIdx);
 }
 
-cv::Point2f PipelineDetector::undistortPoint(const cv::Point &pixel,
-                                             const CameraIntrinsics &intrinsics) {
-    if (!intrinsics.has_distortion || intrinsics.D.empty()) {
-        return cv::Point2f(pixel.x, pixel.y);
-    }
-
-    cv::Mat K = (cv::Mat_<double>(3, 3) <<
-        intrinsics.fx, 0, intrinsics.cx,
-        0, intrinsics.fy, intrinsics.cy,
-        0, 0, 1);
-
-    cv::Mat D = cv::Mat(intrinsics.D);
-
-    std::vector<cv::Point2f> distorted_pts = {cv::Point2f(pixel.x, pixel.y)};
-    std::vector<cv::Point2f> undistorted_pts;
-    cv::undistortPoints(distorted_pts, undistorted_pts, K, D, cv::noArray(), K);
-
-    return undistorted_pts[0];
-}
 
 }  // namespace vortex_pipeline_image_endpoints
