@@ -25,7 +25,7 @@ find_package(OpenCV REQUIRED)
 
 # Geometry library (uses tf2 for coordinate transformations)
 add_library(position_estimator_geometry
-  src/core/geometry.cpp
+  src/core/backproject_ground_plane.cpp
 )
 target_include_directories(position_estimator_geometry PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
