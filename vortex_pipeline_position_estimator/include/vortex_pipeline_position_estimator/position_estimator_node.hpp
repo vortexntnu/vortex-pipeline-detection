@@ -12,7 +12,8 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <vector>
 #include <vortex_msgs/msg/landmark_array.hpp>
-#include <vortex_msgs/msg/landmark_type_class.hpp>
+#include <vortex_msgs/msg/landmark_type.hpp>
+#include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/point2_d_array.hpp>
 #include "vortex_pipeline_position_estimator/backproject_ground_plane.hpp"
 

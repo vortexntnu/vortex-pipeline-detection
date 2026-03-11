@@ -85,8 +85,10 @@ void PositionEstimatorNode::endpointsCallback(
     landmark_msg.header.stamp = msg->header.stamp;
     landmark_msg.header.frame_id = "odom";
     landmark_msg.landmarks.resize(1);
-    landmark_msg.landmarks.at(0).type_class.type =
-        vortex_msgs::msg::LandmarkTypeClass::PIPELINE_START;
+    landmark_msg.landmarks.at(0).type.value =
+        vortex_msgs::msg::LandmarkType::PIPELINE_START;
+    landmark_msg.landmarks.at(0).subtype.value =
+        vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
     landmark_msg.landmarks.at(0).id = 0;
     landmark_msg.landmarks.at(0).pose.pose.position.x = selected_3d.x;
     landmark_msg.landmarks.at(0).pose.pose.position.y = selected_3d.y;
