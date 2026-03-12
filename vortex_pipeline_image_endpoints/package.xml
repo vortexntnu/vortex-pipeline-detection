@@ -10,7 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <!-- Core dependencies -->
-  <depend>opencv4</depend>
+  <depend>libopencv-dev</depend>
 
   <!-- ROS dependencies -->
   <depend>rclcpp</depend>
