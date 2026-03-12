@@ -27,10 +27,10 @@ def generate_launch_description():
                 name='pipeline_image_endpoints',
                 parameters=[config_path],
                 arguments=[
-                            '--ros-args',
-                            '--log-level',
-                            ['pipeline_image_endpoints:=', LaunchConfiguration('log_level')],
-                        ],
+                    '--ros-args',
+                    '--log-level',
+                    ['pipeline_image_endpoints:=', LaunchConfiguration('log_level')],
+                ],
                 output='screen',
             ),
         ]

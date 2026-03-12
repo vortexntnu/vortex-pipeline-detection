@@ -12,8 +12,8 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <vector>
 #include <vortex_msgs/msg/landmark_array.hpp>
-#include <vortex_msgs/msg/landmark_type.hpp>
 #include <vortex_msgs/msg/landmark_subtype.hpp>
+#include <vortex_msgs/msg/landmark_type.hpp>
 #include <vortex_msgs/msg/point2_d_array.hpp>
 #include "vortex_pipeline_position_estimator/backproject_ground_plane.hpp"
 
@@ -30,7 +30,7 @@ class PositionEstimatorNode : public rclcpp::Node {
     void dvlCallback(const std_msgs::msg::Float64::SharedPtr msg);
 
     // Helper methods
-std::optional<geometry_msgs::msg::TransformStamped> lookupCameraToWorld(
+    std::optional<geometry_msgs::msg::TransformStamped> lookupCameraToWorld(
         const std::string& frame_id,
         const rclcpp::Time& stamp);
     // ROS interfaces

@@ -27,10 +27,10 @@ def generate_launch_description():
                 name='pipeline_position_estimator',
                 parameters=[config_path],
                 arguments=[
-                            '--ros-args',
-                            '--log-level',
-                            ['pipeline_position_estimator:=', LaunchConfiguration('log_level')],
-                        ],
+                    '--ros-args',
+                    '--log-level',
+                    ['pipeline_position_estimator:=', LaunchConfiguration('log_level')],
+                ],
                 output='screen',
             ),
         ]
