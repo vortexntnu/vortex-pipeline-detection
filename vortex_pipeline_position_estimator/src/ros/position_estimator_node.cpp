@@ -1,5 +1,6 @@
 #include "vortex_pipeline_position_estimator/position_estimator_node.hpp"
 #include <algorithm>
+#include <cmath>
 
 namespace vortex_pipeline_position_estimator {
 
@@ -92,7 +93,11 @@ void PositionEstimatorNode::endpointsCallback(
     landmark_msg.landmarks.at(0).pose.pose.position.x = selected_3d.x;
     landmark_msg.landmarks.at(0).pose.pose.position.y = selected_3d.y;
     landmark_msg.landmarks.at(0).pose.pose.position.z = selected_3d.z;
-    landmark_msg.landmarks.at(0).pose.pose.orientation.w = 1.0;
+    double yaw = std::atan2(selected_3d.y, selected_3d.x);
+    landmark_msg.landmarks.at(0).pose.pose.orientation.x = 0.0;
+    landmark_msg.landmarks.at(0).pose.pose.orientation.y = 0.0;
+    landmark_msg.landmarks.at(0).pose.pose.orientation.z = std::sin(yaw / 2.0);
+    landmark_msg.landmarks.at(0).pose.pose.orientation.w = std::cos(yaw / 2.0);
     landmark_pub_->publish(landmark_msg);
 
     RCLCPP_DEBUG(this->get_logger(), "DVL altitude: %.3f m", dvl_altitude_);
