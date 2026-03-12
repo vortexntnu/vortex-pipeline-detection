@@ -81,7 +81,7 @@ repositories:
 
 ## Current Dependencies
 
-- **vortex-utils**: Shared utilities for Vortex projects
+- **vortex-msgs**: Shared message definitions for Vortex projects
 
 ## Further Reading
 

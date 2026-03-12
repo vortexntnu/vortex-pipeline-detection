@@ -125,7 +125,7 @@ void LinedetectorPipe::getEndPoints(Line& line, bool swap) {
     }
 }
 
-std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img, const int maxLines = 3) {
+std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img, const int maxLines) {
     orgImg_ = img.clone();
     cv::resize(orgImg_, orgImg_, cv::Size(size_, size_));
     processedImg_ = img.clone();

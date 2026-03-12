@@ -51,7 +51,7 @@ class LinedetectorPipe {
    public:
     ~LinedetectorPipe();
     // call operator is the entry point for the pipeline
-    std::vector<Line> detect(const cv::Mat& img, const int maxLines);
+    std::vector<Line> detect(const cv::Mat& img, const int maxLines = 3);
 
     LinedetectorPipe();
     explicit LinedetectorPipe(RandsacParams params) {

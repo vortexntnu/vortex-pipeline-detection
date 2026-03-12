@@ -9,7 +9,7 @@ PositionEstimatorNode::PositionEstimatorNode() : Node("pipeline_position_estimat
 
     // Initialize tf2 buffer and listener
     tf2_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
-    tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
+    tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_, this);
 
     // Declare parameters
     auto endpoints_topic = this->declare_parameter<std::string>("endpoints_topic");
@@ -18,6 +18,7 @@ PositionEstimatorNode::PositionEstimatorNode() : Node("pipeline_position_estimat
     auto publish_topic = this->declare_parameter<std::string>("publish_topic");
     transform_timeout_ms_ = this->declare_parameter<int>("transform_timeout_ms");
     apply_undistortion_ = this->declare_parameter<bool>("apply_undistortion");
+    reference_frame_ = this->declare_parameter<std::string>("reference_frame");
 
     // Subscriptions
     endpoints_sub_ = this->create_subscription<vortex_msgs::msg::Point2DArray>(
@@ -84,7 +85,7 @@ void PositionEstimatorNode::endpointsCallback(
     // Publish as Landmark
     vortex_msgs::msg::LandmarkArray landmark_msg;
     landmark_msg.header.stamp = msg->header.stamp;
-    landmark_msg.header.frame_id = "odom";
+    landmark_msg.header.frame_id = reference_frame_;
     landmark_msg.landmarks.resize(1);
     landmark_msg.landmarks.at(0).type.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
     landmark_msg.landmarks.at(0).subtype.value =
@@ -102,11 +103,12 @@ void PositionEstimatorNode::endpointsCallback(
 
     RCLCPP_DEBUG(this->get_logger(), "DVL altitude: %.3f m", dvl_altitude_);
     for (size_t i = 0; i < endpoints_3d.size(); ++i) {
-        RCLCPP_DEBUG(this->get_logger(), "  EP%zu: (%.3f, %.3f, %.3f) m [odom]", i + 1,
-                     endpoints_3d[i].x, endpoints_3d[i].y, endpoints_3d[i].z);
+        RCLCPP_DEBUG(this->get_logger(), "  EP%zu: (%.3f, %.3f, %.3f) m [%s]", i + 1,
+                     endpoints_3d[i].x, endpoints_3d[i].y, endpoints_3d[i].z,
+                     reference_frame_.c_str());
     }
-    RCLCPP_DEBUG(this->get_logger(), "  Selected: (%.3f, %.3f, %.3f) m [odom]", selected_3d.x,
-                 selected_3d.y, selected_3d.z);
+    RCLCPP_DEBUG(this->get_logger(), "  Selected: (%.3f, %.3f, %.3f) m [%s]", selected_3d.x,
+                 selected_3d.y, selected_3d.z, reference_frame_.c_str());
 }
 
 std::optional<geometry_msgs::msg::TransformStamped> PositionEstimatorNode::lookupCameraToWorld(
@@ -114,13 +116,14 @@ std::optional<geometry_msgs::msg::TransformStamped> PositionEstimatorNode::looku
     const rclcpp::Time& stamp) {
     try {
         return tf2_buffer_->lookupTransform(
-            "odom",    // target frame (world)
-            frame_id,  // source frame (camera frame from camera_info)
-            stamp,     // timestamp of observation
+            reference_frame_,  // target frame (world)
+            frame_id,          // source frame (camera frame from camera_info)
+            stamp,             // timestamp of observation
             std::chrono::milliseconds(transform_timeout_ms_));
     } catch (const tf2::TransformException& ex) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Could not transform %s to odom: %s", frame_id.c_str(), ex.what());
+                             "Could not transform %s to %s: %s", frame_id.c_str(),
+                             reference_frame_.c_str(), ex.what());
         return std::nullopt;
     }
 }

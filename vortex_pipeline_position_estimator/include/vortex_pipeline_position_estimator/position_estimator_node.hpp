@@ -48,8 +48,9 @@ class PositionEstimatorNode : public rclcpp::Node {
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
     // Parameters
-    int transform_timeout_ms_{100};
-    bool apply_undistortion_{true};
+    int transform_timeout_ms_;
+    bool apply_undistortion_;
+    std::string reference_frame_;
 };
 
 }  // namespace vortex_pipeline_position_estimator
