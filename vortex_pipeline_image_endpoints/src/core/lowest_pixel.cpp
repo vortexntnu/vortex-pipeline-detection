@@ -14,8 +14,8 @@ std::optional<cv::Point> PipelineDetector::findLowestPixel(const cv::Mat& binary
             if (ptr[col] > 0) cols.push_back(col);
         }
         if (!cols.empty()) {
-            int avg_x =
-                static_cast<int>(std::accumulate(cols.begin(), cols.end(), 0) / (int)cols.size());
+            int avg_x = static_cast<int>(std::accumulate(cols.begin(), cols.end(), 0) /
+                                         static_cast<int>(cols.size()));
             return cv::Point(avg_x, row);
         }
     }

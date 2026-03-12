@@ -1,9 +1,10 @@
-#ifndef LINDETECTORPIPE_HPP
-#define LINDETECTORPIPE_HPP
+#ifndef PIPELINE_LINE_FITTING__LINEDETECTORPIPE_HPP_
+#define PIPELINE_LINE_FITTING__LINEDETECTORPIPE_HPP_
 
 #include <armadillo>
 #include <iostream>
 #include <pipeline_line_fitting/randsac.hpp>
+#include <vector>
 
 struct RandsacParams {
     int n;
@@ -53,7 +54,7 @@ class LinedetectorPipe {
     std::vector<Line> detect(const cv::Mat& img, const int maxLines);
 
     LinedetectorPipe();
-    LinedetectorPipe(RandsacParams params) {
+    explicit LinedetectorPipe(RandsacParams params) {
         // A line detector using RANSAC to find to lines in a bitmask image
         n_ = params.n;
         k_ = params.k;
@@ -70,4 +71,4 @@ class LinedetectorPipe {
     }
 };
 
-#endif  // LINDETECTORPIPE_HPP
+#endif  // PIPELINE_LINE_FITTING__LINEDETECTORPIPE_HPP_

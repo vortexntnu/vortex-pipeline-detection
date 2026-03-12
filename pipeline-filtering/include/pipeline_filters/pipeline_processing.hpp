@@ -1,5 +1,5 @@
-#ifndef PIPELINE_PROCESSING_HPP
-#define PIPELINE_PROCESSING_HPP
+#ifndef PIPELINE_FILTERS__PIPELINE_PROCESSING_HPP_
+#define PIPELINE_FILTERS__PIPELINE_PROCESSING_HPP_
 
 #include <iostream>
 #include <map>
@@ -8,6 +8,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/xphoto.hpp>
+#include <string>
 
 namespace vortex::pipeline_processing {
 
@@ -47,9 +48,9 @@ void otsu_segmentation_filter(const FilterParams& params,
                               const cv::Mat& original,
                               cv::Mat& output);
 
-const static std::map<std::string, FilterFunction> filter_functions = {
+static const std::map<std::string, FilterFunction> filter_functions = {
     {"no_filter", no_filter},
     {"otsu", otsu_segmentation_filter}};
 
 }  // namespace vortex::pipeline_processing
-#endif  // PIPELINE_PROCESSING_HPP
+#endif  // PIPELINE_FILTERS__PIPELINE_PROCESSING_HPP_

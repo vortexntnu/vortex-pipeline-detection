@@ -111,7 +111,6 @@ void PipelineFilteringNode::image_callback(const sensor_msgs::msg::Image::Shared
                                         "Empty image received, skipping processing.");
             return;
         }
-
     } catch (cv_bridge::Exception& e) {
         RCLCPP_WARN_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                                     "cv_bridge exception: " << e.what());

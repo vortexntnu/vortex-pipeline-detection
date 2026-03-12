@@ -2,6 +2,7 @@
 
 #include <opencv2/opencv.hpp>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace vortex_pipeline_image_endpoints {

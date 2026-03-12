@@ -47,8 +47,8 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
     removeBorderArtifacts(img);
 }
 
-LinedetectorPipe::LinedetectorPipe() {};
-LinedetectorPipe::~LinedetectorPipe() {};
+LinedetectorPipe::LinedetectorPipe() {}
+LinedetectorPipe::~LinedetectorPipe() {}
 
 void LinedetectorPipe::postprocess() {}
 

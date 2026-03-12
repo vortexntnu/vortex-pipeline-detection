@@ -1,11 +1,13 @@
-#ifndef PIPELINE_FILTERING_ROS_HPP
-#define PIPELINE_FILTERING_ROS_HPP
+#ifndef PIPELINE_FILTERS__PIPELINE_FILTERING_ROS_HPP_
+#define PIPELINE_FILTERS__PIPELINE_FILTERING_ROS_HPP_
 
 #include <cv_bridge/cv_bridge.h>
+#include <memory>
 #include <rclcpp/parameter_event_handler.hpp>
 #include <rclcpp/qos.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <string>
 #include "pipeline_processing.hpp"
 #include "std_msgs/msg/float32.hpp"
 #include "std_msgs/msg/int32.hpp"
@@ -14,7 +16,7 @@ namespace vortex::pipeline_processing {
 class PipelineFilteringNode : public rclcpp::Node {
    public:
     explicit PipelineFilteringNode(const rclcpp::NodeOptions& options);
-    ~PipelineFilteringNode() {};
+    ~PipelineFilteringNode() {}
 
    private:
     /**
@@ -126,4 +128,4 @@ class PipelineFilteringNode : public rclcpp::Node {
 
 }  // namespace vortex::pipeline_processing
 
-#endif  // PIPELINE_FILTERING_ROS_HPP
+#endif  // PIPELINE_FILTERS__PIPELINE_FILTERING_ROS_HPP_
