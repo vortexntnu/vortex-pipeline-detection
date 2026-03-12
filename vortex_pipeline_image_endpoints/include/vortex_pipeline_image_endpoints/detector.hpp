@@ -36,6 +36,8 @@ class PipelineDetector {
         const cv::Mat& binary);
     // Find the centroid of the lowest (highest y-index) foreground row
     static std::optional<cv::Point> findLowestPixel(const cv::Mat& binary);
+    // Find the centroid of the highest (lowest y-index) foreground row
+    static std::optional<cv::Point> findHighestPixel(const cv::Mat& binary);
 
     // --- Debug ---
     // Draw detected endpoints onto debug_out, initialised from pipe_mask

@@ -24,6 +24,7 @@ std::optional<PipelineEndpoints> PipelineDetector::findPipelineEndpoints(const c
             auto lowest = findLowestPixel(*pipe_mask);
             if (!lowest) return std::nullopt;
             result.endpoint1 = *lowest;
+            result.endpoint2 = findHighestPixel(*pipe_mask);
             break;
         }
     }

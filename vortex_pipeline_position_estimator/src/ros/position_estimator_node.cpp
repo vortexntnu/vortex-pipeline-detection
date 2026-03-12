@@ -94,11 +94,19 @@ void PositionEstimatorNode::endpointsCallback(
     landmark_msg.landmarks.at(0).pose.pose.position.x = selected_3d.x;
     landmark_msg.landmarks.at(0).pose.pose.position.y = selected_3d.y;
     landmark_msg.landmarks.at(0).pose.pose.position.z = selected_3d.z;
-    double yaw = std::atan2(selected_3d.y, selected_3d.x);
     landmark_msg.landmarks.at(0).pose.pose.orientation.x = 0.0;
     landmark_msg.landmarks.at(0).pose.pose.orientation.y = 0.0;
-    landmark_msg.landmarks.at(0).pose.pose.orientation.z = std::sin(yaw / 2.0);
-    landmark_msg.landmarks.at(0).pose.pose.orientation.w = std::cos(yaw / 2.0);
+    if (endpoints_3d.size() == 2) {
+        auto furthest_from_origo =
+            std::max_element(endpoints_3d.begin(), endpoints_3d.end(), closest_to_origin);
+        double yaw = std::atan2(furthest_from_origo->y - selected_3d.y,
+                                furthest_from_origo->x - selected_3d.x);
+        landmark_msg.landmarks.at(0).pose.pose.orientation.z = std::sin(yaw / 2.0);
+        landmark_msg.landmarks.at(0).pose.pose.orientation.w = std::cos(yaw / 2.0);
+    } else {
+        landmark_msg.landmarks.at(0).pose.pose.orientation.z = 0.0;
+        landmark_msg.landmarks.at(0).pose.pose.orientation.w = 1.0;
+    }
     landmark_pub_->publish(landmark_msg);
 
     RCLCPP_DEBUG(this->get_logger(), "DVL altitude: %.3f m", dvl_altitude_);
