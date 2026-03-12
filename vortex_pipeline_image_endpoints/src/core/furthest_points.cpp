@@ -34,8 +34,6 @@ std::optional<std::pair<cv::Point, cv::Point>> PipelineDetector::findFurthestPoi
         }
     }
 
-    if (max_dist < 10) return std::nullopt;  // too small to be meaningful
-
     return std::make_pair(pt1, pt2);
 }
 
