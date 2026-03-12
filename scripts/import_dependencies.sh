@@ -20,10 +20,10 @@ fi
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPOS_FILE="$WORKSPACE_DIR/vcstool/dependencies.repos"
+REPOS_FILE="$WORKSPACE_DIR/dependencies.repos"
 
 # Import repositories
-echo "Importing repositories from vcstool/dependencies.repos..."
+echo "Importing repositories from dependencies.repos..."
 vcs import --input "$REPOS_FILE" "$WORKSPACE_DIR"
 
 echo "======================================================================"
