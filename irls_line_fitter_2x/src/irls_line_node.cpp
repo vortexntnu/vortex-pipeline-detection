@@ -310,7 +310,7 @@ public:
     // Second-pass (intersection) search
     find_second_line_   = declare_parameter<bool>("find_second_line", true);
     removal_band_px_    = declare_parameter<double>("removal_band_px", 8.0);
-    min_pixels_second_  = declare_parameter<int>("min_pixels_second", 150);
+    min_pixels_second_  = declare_parameter<int>("min_pixels_second", 250);
     draw2_b_            = declare_parameter<int>("draw2_b", 0);
     draw2_g_            = declare_parameter<int>("draw2_g", 255);
     draw2_r_            = declare_parameter<int>("draw2_r", 0);
@@ -418,7 +418,7 @@ private:
       const cv::Vec4i seg1(p1a.x, p1a.y, p1b.x, p1b.y);
 
       first_ok = hasEnoughWhiteUnderLine(
-          cv_ptr->image,   // or use mask if that's your binary image
+          mask,   // or use mask if that's your binary image
           seg1,
           /*bandHeight=*/10,
           /*minWhiteRatio=*/0.60);
@@ -456,7 +456,7 @@ private:
         // Replace `bw` with your black/white (binary) image Mat.
         // bandHeight and ratio are adjustable.
         const cv::Vec4i seg2(p2a.x, p2a.y, p2b.x, p2b.y);
-        second_ok = hasEnoughWhiteUnderLine(cv_ptr->image, seg2, /*bandHeight=*/10, /*minWhiteRatio=*/0.60);
+        second_ok = hasEnoughWhiteUnderLine(mask, seg2, /*bandHeight=*/10, /*minWhiteRatio=*/0.60);
 
         if (second_ok) {
           cv::line(color, p2a, p2b,

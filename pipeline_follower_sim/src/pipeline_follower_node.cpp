@@ -21,6 +21,9 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 
+#include <fstream>
+#include <algorithm>
+
 inline std::pair<double, double> rotateXY(double x, double y, double yaw)
 {
     const double c = std::cos(yaw);
@@ -33,8 +36,6 @@ inline std::pair<double, double> rotateXY(double x, double y, double yaw)
 }
 
 
-
-
 static geometry_msgs::msg::Quaternion quatFromYaw(double yaw_rad)
 {
   tf2::Quaternion q;
@@ -44,46 +45,64 @@ static geometry_msgs::msg::Quaternion quatFromYaw(double yaw_rad)
 
 constexpr double PI = 3.14159265358979323846;
 
-// Normalize angle to [-pi, pi]
+//Normalize angle to [-pi, pi]
 double normalizeAngle(double angle) {
-    while (angle > PI)  angle -= 2.0 * PI;
-    while (angle < -PI) angle += 2.0 * PI;
+      while (angle > PI)  angle -= 2.0 * PI;
+      while (angle < -PI) angle += 2.0 * PI;
     return angle;
 }
 
+double lineOrientation(const cv::Point2f& p1, const cv::Point2f& p2)
+{
+    cv::Point2f a = p1;
+    cv::Point2f b = p2;
+
+    // force line to point upward (forward)
+    if (b.y > a.y)
+        std::swap(a,b);
+
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
+
+    return std::atan2(dx, -dy);
+}
+
 double angleBetweenLinesRad(
-    double yaw,                         // current yaw (radians)
+    double yaw,
     const cv::Point2f& p1, const cv::Point2f& p2,
-    const cv::Point2f& q1, const cv::Point2f& q2
-) {
-    double v1x = p2.x - p1.x;
-    double v1y = p2.y - p1.y;
-    double v2x = q2.x - q1.x;
-    double v2y = q2.y - q1.y;
+    const cv::Point2f& q1, const cv::Point2f& q2,
+    double single = false
+)
+{
+    double oldYaw = yaw;
+    double theta1 = lineOrientation(p1, p2);
 
-    // Magnitudes
-    double mag1 = std::sqrt(v1x * v1x + v1y * v1y);
-    double mag2 = std::sqrt(v2x * v2x + v2y * v2y);
+    double theta2 = lineOrientation(q1, q2);
 
-    if (mag1 == 0.0 || mag2 == 0.0)
-        return yaw;  // no change
+    double angle = normalizeAngle(theta2 - theta1);
 
-    // Dot product → angle magnitude
-    double dot = (v1x * v2x + v1y * v2y) / (mag1 * mag2);
-    dot = std::fmax(-1.0, std::fmin(1.0, dot));
+    if(single)
+      if (p1.x > p2.x){angle = -abs(angle);}
+      else {angle = abs(angle);}
+    
+    double newYaw = yaw + angle;
 
-    double angle = std::acos(dot);
+    static std::ofstream logFile("angle_log.txt", std::ios::app);
 
-    // Cross product → sign
-    double cross = v1x * v2y - v1y * v2x;
-    if (cross < 0)
-        angle = -angle;
+    if (logFile.is_open() && !single){
+        logFile << "Line1: (" << p1.x << "," << p1.y << ") -> ("
+                << p2.x << "," << p2.y << ") | ";
 
-    // Update yaw
-    yaw += angle;
+        logFile << "Line2: (" << q1.x << "," << q1.y << ") -> ("
+                << q2.x << "," << q2.y << ") | ";
 
-    // Normalize final yaw
-    return normalizeAngle(yaw);
+        logFile << "Angle: " << angle
+                << " | OldYaw: " << oldYaw
+                << " | NewYaw: " << newYaw
+                << std::endl;
+    }
+
+    return normalizeAngle(yaw + angle);
 }
 
 double hight_regulator(double z_hight, double dvl_hight, double target_hight = 0.7){
@@ -105,10 +124,11 @@ void ensureHighestYFirst(vortex_msgs::msg::LineSegment2D & line)
 }
 
 
-void sortTwoLines(
+void sortLines(
   std::vector<vortex_msgs::msg::LineSegment2D> & lines)
 {
   if (lines.size() != 2) {
+    ensureHighestYFirst(lines[0]);
     return;
   }
 
@@ -117,9 +137,9 @@ void sortTwoLines(
   ensureHighestYFirst(lines[1]);
 
   // Ensure the line with the highest Y overall is first
-  if (maxY(lines[1]) > maxY(lines[0])) {
-    std::swap(lines[0], lines[1]);
-  }
+//   if (maxY(lines[1]) > maxY(lines[0])) {
+//     std::swap(lines[0], lines[1]);
+//   }
 }
 
 
@@ -161,7 +181,7 @@ public:
     input_topic_pose_ = this->declare_parameter<std::string>("input_topic_pose", "/orca/odom");
     input_topic_altitude_ = this->declare_parameter<std::string>("input_topic_altitude", "/dvl/altitude");
     camera_height_ = this->declare_parameter<double>("camera_height", 0.5);
-    send_rate_hz_ = this->declare_parameter<double>("send_rate_hz", 0.5);
+    send_rate_hz_ = this->declare_parameter<double>("send_rate_hz", 0.7);
     camera_placment_x_ = this->declare_parameter<double>("camera_placment_x", 0.4);
 
     debug_waypoint_topic_ = this->declare_parameter<std::string>("debug_waypoint_topic", "/debug/waypoint");
@@ -270,12 +290,14 @@ private:
 
     if (lines.size() == 1)
     {
-      handleSingleLine(lines[0]);
+      auto sorted_lines = lines;  // copy
+      sortLines(sorted_lines);
+      handleSingleLine(sorted_lines[0]);
     }
     else if (lines.size() == 2)
     {
       auto sorted_lines = lines;  // copy
-      sortTwoLines(sorted_lines);
+      sortLines(sorted_lines);
 
       handleTwoLines(sorted_lines[0], sorted_lines[1]);
     }
@@ -407,27 +429,33 @@ private:
     req->switching_threshold = item.switching_threshold;
 
     client_->async_send_request(
-        req,
-        [this](rclcpp::Client<vortex_msgs::srv::SendWaypoints>::SharedFuture future)
+    req,
+    [this](rclcpp::Client<vortex_msgs::srv::SendWaypoints>::SharedFuture future)
+    {
+      request_in_flight_ = false;
+
+      try
         {
-          request_in_flight_ = false;
+          auto resp = future.get();
+          RCLCPP_INFO(this->get_logger(),
+                      "Waypoint sent. success=%d",
+                      resp->success);
+        }
+        catch (...)
+        {
+          RCLCPP_WARN(this->get_logger(),
+                      "Waypoint send failed.");
+        }
 
-          try
-          {
-            auto resp = future.get();
-            RCLCPP_INFO(this->get_logger(),
-                        "Waypoint sent. success=%d",
-                        resp->success);
-          }
-          catch (...)
-          {
-            RCLCPP_WARN(this->get_logger(),
-                        "Waypoint send failed.");
-          }
-
-          // Send next one in queue
-          trySendNextRequest();
-        });
+        // Delay before sending next request
+        request_delay_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(200),  // delay time
+            [this]()
+            {
+              request_delay_timer_->cancel(); // run only once
+              trySendNextRequest();
+            });
+      });
   }
 
 
@@ -459,9 +487,16 @@ private:
 
     double x_in_meters = robot_x_ + dx + xc;
     double y_in_meters = robot_y_ + dy + yc;
-
-    sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_, true, false, vortex_msgs::msg::Waypoint::FORWARD_HEADING, 0.3);
-
+    
+    if (abs(p1.x- p2.x) >= 100)
+    {
+      double newYaw = angleBetweenLinesRad(robot_yaw_, p1,p2,cv::Point2d(1080,0),cv::Point2d(1080,1440), true);
+      sendOrDebugWaypoint(robot_x_, robot_y_, new_robot_z, newYaw, true, false, vortex_msgs::msg::Waypoint::ONLY_ORIENTATION, 0.3);
+    }
+    else
+    {
+      sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_, true, false, vortex_msgs::msg::Waypoint::FORWARD_HEADING, 0.3);
+    }
   }
 
   // --- 2 line case ---
@@ -486,11 +521,12 @@ private:
 
     if (cross_history_.size() == 3)
     {
+      
       double avg_dist = 0.0;
       for (size_t i = 0; i < cross_history_.size() - 1; ++i)
         avg_dist += cv::norm(cross_history_[i] - cross_history_[i + 1]);
       avg_dist /= 2.0;
-      
+
       if (avg_dist < 100.0 & cross.y < 480 )  // pixels threshold for "close proximity"
       {
         double dist;
@@ -563,14 +599,14 @@ private:
         wp3.mode = vortex_msgs::msg::Waypoint::FULL_POSE;
         wps.push_back(wp3);
 
-        enqueueWaypoint(wp1, false,  true,  0.1);   // corner overwrite
+        enqueueWaypoint(wp1, true,  true,  0.1);   // corner overwrite
         enqueueWaypoint(wp2, false, true,  0.1);   // orientation
         enqueueWaypoint(wp3, false, true,  0.1);   // forward
 
 
         return;
       }
-      
+      cross_history_.clear();
     }
     
 
@@ -680,6 +716,8 @@ private:
   double prev_x_ = 0.0;
   double prev_y_ = 0.0;
   double prev_z_ = 0.0;
+
+  rclcpp::TimerBase::SharedPtr request_delay_timer_;
 
   rclcpp::Subscription<vortex_msgs::msg::LineSegment2DArray>::SharedPtr sub_line;
   rclcpp::Client<vortex_msgs::srv::SendWaypoints>::SharedPtr client_;
