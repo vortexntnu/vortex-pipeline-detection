@@ -1,9 +1,10 @@
-#ifndef RANDSAC_HPP
-#define RANDSAC_HPP
+#ifndef PIPELINE_LINE_FITTING__RANDSAC_HPP_
+#define PIPELINE_LINE_FITTING__RANDSAC_HPP_
 
 #include <armadillo>
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <vector>
 
 struct Line {
     double slope;
@@ -95,4 +96,4 @@ class RANDSAC {
              bool flipped = false);
 };
 
-#endif  // RANDSAC_HPP
+#endif  // PIPELINE_LINE_FITTING__RANDSAC_HPP_

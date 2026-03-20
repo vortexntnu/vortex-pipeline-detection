@@ -1,9 +1,10 @@
-#ifndef LINDETECTORPIPE_HPP
-#define LINDETECTORPIPE_HPP
+#ifndef PIPELINE_LINE_FITTING__LINEDETECTORPIPE_HPP_
+#define PIPELINE_LINE_FITTING__LINEDETECTORPIPE_HPP_
 
 #include <armadillo>
 #include <iostream>
 #include <pipeline_line_fitting/randsac.hpp>
+#include <vector>
 
 struct RandsacParams {
     int n;
@@ -50,10 +51,10 @@ class LinedetectorPipe {
    public:
     ~LinedetectorPipe();
     // call operator is the entry point for the pipeline
-    std::vector<Line> detect(const cv::Mat& img, const int maxLines);
+    std::vector<Line> detect(const cv::Mat& img, const int maxLines = 3);
 
     LinedetectorPipe();
-    LinedetectorPipe(RandsacParams params) {
+    explicit LinedetectorPipe(RandsacParams params) {
         // A line detector using RANSAC to find to lines in a bitmask image
         n_ = params.n;
         k_ = params.k;
@@ -66,9 +67,8 @@ class LinedetectorPipe {
         morph_close_size_ = params.morph_close_size;
         dist_thresh_ = params.dist_thresh;
 
-        randsac_ =
-            RANDSAC(n_, k_, t_, 2, removeT_, finalScorethresh_, minTurnAngle_);
+        randsac_ = RANDSAC(n_, k_, t_, 2, removeT_, finalScorethresh_, minTurnAngle_);
     }
 };
 
-#endif  // LINDETECTORPIPE_HPP
+#endif  // PIPELINE_LINE_FITTING__LINEDETECTORPIPE_HPP_

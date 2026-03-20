@@ -1,0 +1,18 @@
+pipeline_position_estimator:
+  ros__parameters:
+    # Input topics
+    endpoints_topic: "/pipeline/endpoints"
+    dvl_altitude_topic: "/dvl/altitude"
+    camera_info_topic: "/pipeline/camera/camera_info"
+
+    # Output topics
+    publish_topic: "/orca/landmarks"
+
+    # Transform lookup timeout in milliseconds
+    transform_timeout_ms: 100
+
+    # Whether to apply lens distortion correction before backprojection
+    apply_undistortion: true
+
+    # World reference frame for published landmarks and TF lookups
+    reference_frame: "odom"

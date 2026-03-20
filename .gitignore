@@ -1,6 +1,11 @@
+#VCS DEPENDENCIES
+*/vortex-msgs
+
 devel/
 logs/
 build/
+install/
+log/
 bin/
 lib/
 msg_gen/
@@ -52,3 +57,10 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# AI
+.claude
+CLAUDE.MD
+
+# OS specific files
+.DS_Store
