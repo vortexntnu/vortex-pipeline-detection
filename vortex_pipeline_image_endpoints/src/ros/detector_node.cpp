@@ -1,8 +1,8 @@
 #include "vortex_pipeline_image_endpoints/detector_node.hpp"
 #include <cv_bridge/cv_bridge.h>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <vortex_msgs/msg/point2_d.hpp>
 #include "vortex_pipeline_image_endpoints/detector.hpp"
-#include <rclcpp_components/register_node_macro.hpp>
 
 namespace vortex_pipeline_image_endpoints {
 

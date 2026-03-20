@@ -20,9 +20,9 @@ class PipelineDetector {
     // Returns struct with endpoint(s) if found
     // debug_out: optional debug visualization (nullptr = no debug)
     static std::optional<PipelineEndpoints> find_pipeline_endpoints(const cv::Mat& mask,
-                                                                     DetectionMethod method,
-                                                                     int kernel_size,
-                                                                     cv::Mat* debug_out = nullptr);
+                                                                    DetectionMethod method,
+                                                                    int kernel_size,
+                                                                    cv::Mat* debug_out = nullptr);
 
    private:
     // --- Preprocessing ---

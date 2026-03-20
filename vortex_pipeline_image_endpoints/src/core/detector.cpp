@@ -2,11 +2,10 @@
 
 namespace vortex_pipeline_image_endpoints {
 
-std::optional<PipelineEndpoints> PipelineDetector::find_pipeline_endpoints(
-    const cv::Mat& mask,
-    DetectionMethod method,
-    int kernel_size,
-    cv::Mat* debug_out) {
+std::optional<PipelineEndpoints> PipelineDetector::find_pipeline_endpoints(const cv::Mat& mask,
+                                                                           DetectionMethod method,
+                                                                           int kernel_size,
+                                                                           cv::Mat* debug_out) {
     if (mask.empty()) return std::nullopt;
 
     auto pipe_mask = largest_component(clean_mask(mask, kernel_size));
