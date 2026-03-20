@@ -3,10 +3,12 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <algorithm>
 #include <cmath>
+#include <rclcpp_components/register_node_macro.hpp>
 
 namespace vortex_pipeline_position_estimator {
 
-PositionEstimatorNode::PositionEstimatorNode() : Node("pipeline_position_estimator") {
+PositionEstimatorNode::PositionEstimatorNode(const rclcpp::NodeOptions& options)
+    : Node("pipeline_position_estimator", options) {
     auto qos = rclcpp::QoS(1).best_effort();
 
     // Initialize tf2 buffer and listener
@@ -184,3 +186,5 @@ void PositionEstimatorNode::dvl_callback(const std_msgs::msg::Float64::SharedPtr
 }
 
 }  // namespace vortex_pipeline_position_estimator
+
+RCLCPP_COMPONENTS_REGISTER_NODE(vortex_pipeline_position_estimator::PositionEstimatorNode)

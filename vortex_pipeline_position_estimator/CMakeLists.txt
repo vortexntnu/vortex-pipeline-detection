@@ -14,6 +14,7 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -23,7 +24,7 @@ find_package(std_msgs REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 
-# Geometry library (uses tf2 for coordinate transformations)
+# Geometry library (pure math, no ROS dependencies)
 add_library(position_estimator_geometry
   src/core/backproject_ground_plane.cpp
 )
@@ -32,24 +33,30 @@ target_include_directories(position_estimator_geometry PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(position_estimator_geometry ${OpenCV_LIBS})
-ament_target_dependencies(position_estimator_geometry
-  geometry_msgs tf2 tf2_ros tf2_geometry_msgs
-)
 
-# ROS node executable
-add_executable(position_estimator_node
+# Node component (composable)
+add_library(position_estimator_component SHARED
   src/ros/position_estimator_node.cpp
-  src/position_estimator_node_main.cpp
 )
-target_link_libraries(position_estimator_node position_estimator_geometry ${OpenCV_LIBS})
-ament_target_dependencies(position_estimator_node
-  rclcpp sensor_msgs geometry_msgs std_msgs vortex_msgs
+target_link_libraries(position_estimator_component position_estimator_geometry ${OpenCV_LIBS})
+ament_target_dependencies(position_estimator_component
+  rclcpp rclcpp_components sensor_msgs geometry_msgs std_msgs vortex_msgs
   tf2 tf2_ros tf2_geometry_msgs
+)
+rclcpp_components_register_node(position_estimator_component
+  PLUGIN "vortex_pipeline_position_estimator::PositionEstimatorNode"
+  EXECUTABLE position_estimator_node
 )
 
 # Install targets
 install(TARGETS position_estimator_geometry
   EXPORT position_estimator_geometry-targets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(TARGETS position_estimator_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

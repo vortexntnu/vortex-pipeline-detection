@@ -14,6 +14,7 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
@@ -34,19 +35,28 @@ target_include_directories(image_endpoints_core PUBLIC
 )
 target_link_libraries(image_endpoints_core ${OpenCV_LIBS})
 
-# ROS node executable
-add_executable(image_endpoints_node
+# Node component (composable)
+add_library(image_endpoints_component SHARED
   src/ros/detector_node.cpp
-  src/detector_node_main.cpp
 )
-target_link_libraries(image_endpoints_node image_endpoints_core ${OpenCV_LIBS})
-ament_target_dependencies(image_endpoints_node
-  rclcpp sensor_msgs std_msgs cv_bridge vortex_msgs
+target_link_libraries(image_endpoints_component image_endpoints_core ${OpenCV_LIBS})
+ament_target_dependencies(image_endpoints_component
+  rclcpp rclcpp_components sensor_msgs std_msgs cv_bridge vortex_msgs
+)
+rclcpp_components_register_node(image_endpoints_component
+  PLUGIN "vortex_pipeline_image_endpoints::DetectorNode"
+  EXECUTABLE image_endpoints_node
 )
 
 # Install targets
 install(TARGETS image_endpoints_core
   EXPORT image_endpoints_core-targets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(TARGETS image_endpoints_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

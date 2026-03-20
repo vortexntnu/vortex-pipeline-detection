@@ -9,7 +9,7 @@ namespace vortex_pipeline_image_endpoints {
 
 class DetectorNode : public rclcpp::Node {
    public:
-    DetectorNode();
+    explicit DetectorNode(const rclcpp::NodeOptions& options);
 
    private:
     void mask_callback(const sensor_msgs::msg::Image::SharedPtr msg);

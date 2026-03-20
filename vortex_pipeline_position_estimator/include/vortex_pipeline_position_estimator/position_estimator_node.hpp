@@ -22,7 +22,7 @@ namespace vortex_pipeline_position_estimator {
 
 class PositionEstimatorNode : public rclcpp::Node {
    public:
-    PositionEstimatorNode();
+    explicit PositionEstimatorNode(const rclcpp::NodeOptions& options);
 
    private:
     // Callbacks
@@ -36,8 +36,8 @@ class PositionEstimatorNode : public rclcpp::Node {
         const rclcpp::Time& stamp);
     vortex_msgs::msg::LandmarkArray build_landmark_msg(
         const rclcpp::Time& stamp,
-                                                     const cv::Point3d& selected_3d,
-                                                     const std::vector<cv::Point3d>& endpoints_3d);
+        const cv::Point3d& selected_3d,
+        const std::vector<cv::Point3d>& endpoints_3d);
 
     // ROS interfaces
     rclcpp::Subscription<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_sub_;

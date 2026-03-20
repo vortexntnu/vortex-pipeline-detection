@@ -2,10 +2,12 @@
 #include <cv_bridge/cv_bridge.h>
 #include <vortex_msgs/msg/point2_d.hpp>
 #include "vortex_pipeline_image_endpoints/detector.hpp"
+#include <rclcpp_components/register_node_macro.hpp>
 
 namespace vortex_pipeline_image_endpoints {
 
-DetectorNode::DetectorNode() : Node("pipeline_image_endpoints") {
+DetectorNode::DetectorNode(const rclcpp::NodeOptions& options)
+    : Node("pipeline_image_endpoints", options) {
     auto qos = rclcpp::QoS(1).best_effort();
 
     // Parameters
@@ -100,3 +102,5 @@ void DetectorNode::mask_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
 }
 
 }  // namespace vortex_pipeline_image_endpoints
+
+RCLCPP_COMPONENTS_REGISTER_NODE(vortex_pipeline_image_endpoints::DetectorNode)
