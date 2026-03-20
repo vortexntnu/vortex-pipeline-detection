@@ -42,8 +42,15 @@ RUN apt-get update && apt-get install -y \
     libopencv-dev \
     libpcl-dev \
     python3-colcon-common-extensions \
-    clangd \
+    wget \
+    gnupg \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc && \
+    echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm.list && \
+    apt-get update && apt-get install -y clangd-18 && \
+    ln -sf /usr/bin/clangd-18 /usr/bin/clangd && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install cython
 
