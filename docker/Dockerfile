@@ -52,7 +52,7 @@ RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.
     ln -sf /usr/bin/clangd-18 /usr/bin/clangd && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install cython
+RUN pip3 install cython pre-commit
 
 # ----------------------------------------------------------------------------
 # Copy Workspace Files
