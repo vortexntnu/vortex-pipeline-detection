@@ -2,9 +2,10 @@
 
 namespace vortex_pipeline_image_endpoints {
 
-cv::Mat PipelineDetector::cleanMask(const cv::Mat& mask) {
+cv::Mat PipelineDetector::cleanMask(const cv::Mat& mask, int kernel_size) {
     cv::Mat result;
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+    cv::Mat kernel =
+        cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernel_size, kernel_size));
     cv::morphologyEx(mask, result, cv::MORPH_CLOSE, kernel);
     cv::morphologyEx(result, result, cv::MORPH_OPEN, kernel);
     return result;

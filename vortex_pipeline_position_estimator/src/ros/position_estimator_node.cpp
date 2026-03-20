@@ -1,4 +1,6 @@
 #include "vortex_pipeline_position_estimator/position_estimator_node.hpp"
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
 #include <algorithm>
 #include <cmath>
 
@@ -61,10 +63,23 @@ void PositionEstimatorNode::endpointsCallback(
         return;
     }
 
-    auto transform = lookupCameraToWorld(intrinsics_->frame_id, msg->header.stamp);
+    auto transform = lookupCameraToWorld(camera_frame_id_, msg->header.stamp);
     if (!transform) {
         return;
     }
+
+    // Convert ROS transform to plain math types for core library
+    tf2::Quaternion quat;
+    tf2::fromMsg(transform->transform.rotation, quat);
+    tf2::Matrix3x3 rot(quat);
+    // clang-format off
+    cv::Matx33d rotation(rot[0][0], rot[0][1], rot[0][2],
+                         rot[1][0], rot[1][1], rot[1][2],
+                         rot[2][0], rot[2][1], rot[2][2]);
+    cv::Vec3d translation(transform->transform.translation.x,
+                          transform->transform.translation.y,
+                          transform->transform.translation.z);
+    // clang-format on
 
     // Backproject all endpoints to 3D
     std::vector<cv::Point3d> endpoints_3d;
@@ -72,7 +87,7 @@ void PositionEstimatorNode::endpointsCallback(
     for (const auto& pt : msg->points) {
         endpoints_3d.push_back(
             backprojectGroundPlane(static_cast<int>(pt.x), static_cast<int>(pt.y), dvl_altitude_,
-                                   *intrinsics_, *transform, apply_undistortion_));
+                                   *intrinsics_, rotation, translation, apply_undistortion_));
     }
 
     // Select endpoint closest to 3D origin as pipeline start
@@ -82,32 +97,7 @@ void PositionEstimatorNode::endpointsCallback(
     cv::Point3d selected_3d =
         *std::min_element(endpoints_3d.begin(), endpoints_3d.end(), closest_to_origin);
 
-    // Publish as Landmark
-    vortex_msgs::msg::LandmarkArray landmark_msg;
-    landmark_msg.header.stamp = msg->header.stamp;
-    landmark_msg.header.frame_id = reference_frame_;
-    landmark_msg.landmarks.resize(1);
-    landmark_msg.landmarks.at(0).type.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
-    landmark_msg.landmarks.at(0).subtype.value =
-        vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
-    landmark_msg.landmarks.at(0).id = 0;
-    landmark_msg.landmarks.at(0).pose.pose.position.x = selected_3d.x;
-    landmark_msg.landmarks.at(0).pose.pose.position.y = selected_3d.y;
-    landmark_msg.landmarks.at(0).pose.pose.position.z = selected_3d.z;
-    landmark_msg.landmarks.at(0).pose.pose.orientation.x = 0.0;
-    landmark_msg.landmarks.at(0).pose.pose.orientation.y = 0.0;
-    if (endpoints_3d.size() == 2) {
-        auto furthest_from_origo =
-            std::max_element(endpoints_3d.begin(), endpoints_3d.end(), closest_to_origin);
-        double yaw = std::atan2(furthest_from_origo->y - selected_3d.y,
-                                furthest_from_origo->x - selected_3d.x);
-        landmark_msg.landmarks.at(0).pose.pose.orientation.z = std::sin(yaw / 2.0);
-        landmark_msg.landmarks.at(0).pose.pose.orientation.w = std::cos(yaw / 2.0);
-    } else {
-        landmark_msg.landmarks.at(0).pose.pose.orientation.z = 0.0;
-        landmark_msg.landmarks.at(0).pose.pose.orientation.w = 1.0;
-    }
-    landmark_pub_->publish(landmark_msg);
+    landmark_pub_->publish(buildLandmarkMsg(msg->header.stamp, selected_3d, endpoints_3d));
 
     RCLCPP_DEBUG(this->get_logger(), "DVL altitude: %.3f m", dvl_altitude_);
     for (size_t i = 0; i < endpoints_3d.size(); ++i) {
@@ -136,12 +126,47 @@ std::optional<geometry_msgs::msg::TransformStamped> PositionEstimatorNode::looku
     }
 }
 
+vortex_msgs::msg::LandmarkArray PositionEstimatorNode::buildLandmarkMsg(
+    const rclcpp::Time& stamp,
+    const cv::Point3d& selected_3d,
+    const std::vector<cv::Point3d>& endpoints_3d) {
+    vortex_msgs::msg::LandmarkArray msg;
+    msg.header.stamp = stamp;
+    msg.header.frame_id = reference_frame_;
+    msg.landmarks.resize(1);
+    msg.landmarks.at(0).type.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
+    msg.landmarks.at(0).subtype.value = vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
+    msg.landmarks.at(0).id = 0;
+    msg.landmarks.at(0).pose.pose.position.x = selected_3d.x;
+    msg.landmarks.at(0).pose.pose.position.y = selected_3d.y;
+    msg.landmarks.at(0).pose.pose.position.z = selected_3d.z;
+    msg.landmarks.at(0).pose.pose.orientation.x = 0.0;
+    msg.landmarks.at(0).pose.pose.orientation.y = 0.0;
+    if (endpoints_3d.size() == 2) {
+        auto closest_to_origin = [](const cv::Point3d& a, const cv::Point3d& b) {
+            return (a.x * a.x + a.y * a.y + a.z * a.z) < (b.x * b.x + b.y * b.y + b.z * b.z);
+        };
+        // The far endpoint is the one NOT selected as start — compute the pipeline direction
+        // from start toward far end, expressed as a pure yaw quaternion (x=0, y=0)
+        auto furthest =
+            std::max_element(endpoints_3d.begin(), endpoints_3d.end(), closest_to_origin);
+        double yaw = std::atan2(furthest->y - selected_3d.y, furthest->x - selected_3d.x);
+        msg.landmarks.at(0).pose.pose.orientation.z = std::sin(yaw / 2.0);
+        msg.landmarks.at(0).pose.pose.orientation.w = std::cos(yaw / 2.0);
+    } else {
+        // Only one endpoint detected — no direction information, use identity orientation
+        msg.landmarks.at(0).pose.pose.orientation.z = 0.0;
+        msg.landmarks.at(0).pose.pose.orientation.w = 1.0;
+    }
+    return msg;
+}
+
 void PositionEstimatorNode::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
     if (!intrinsics_) {
         CameraIntrinsics intrinsics;
         // msg->k is row-major [fx 0 cx / 0 fy cy / 0 0 1]
         intrinsics.K = cv::Mat(3, 3, CV_64F, const_cast<double*>(msg->k.data())).clone();
-        intrinsics.frame_id = msg->header.frame_id;
+        camera_frame_id_ = msg->header.frame_id;
         if (!msg->d.empty()) {
             intrinsics.D = cv::Mat(msg->d).clone();
         }

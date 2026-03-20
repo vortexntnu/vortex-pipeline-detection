@@ -1,5 +1,8 @@
 pipeline_image_endpoints:
   ros__parameters:
+    # Morphological kernel size for mask cleaning (close+open, must be odd)
+    morph_kernel_size: 5
+
     # Endpoint detection method. Options: "furthest_points", "lowest_pixel"
     detection_method: "lowest_pixel"
 

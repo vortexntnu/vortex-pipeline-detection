@@ -34,6 +34,9 @@ class PositionEstimatorNode : public rclcpp::Node {
     std::optional<geometry_msgs::msg::TransformStamped> lookupCameraToWorld(
         const std::string& frame_id,
         const rclcpp::Time& stamp);
+    vortex_msgs::msg::LandmarkArray buildLandmarkMsg(const rclcpp::Time& stamp,
+                                                     const cv::Point3d& selected_3d,
+                                                     const std::vector<cv::Point3d>& endpoints_3d);
     // ROS interfaces
     rclcpp::Subscription<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr caminfo_sub_;
@@ -51,6 +54,7 @@ class PositionEstimatorNode : public rclcpp::Node {
     int transform_timeout_ms_;
     bool apply_undistortion_;
     std::string reference_frame_;
+    std::string camera_frame_id_;
 };
 
 }  // namespace vortex_pipeline_position_estimator

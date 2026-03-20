@@ -3,7 +3,6 @@
 #include <opencv2/opencv.hpp>
 #include <optional>
 #include <utility>
-#include <vector>
 
 namespace vortex_pipeline_image_endpoints {
 
@@ -22,12 +21,13 @@ class PipelineDetector {
     // debug_out: optional debug visualization (nullptr = no debug)
     static std::optional<PipelineEndpoints> findPipelineEndpoints(const cv::Mat& mask,
                                                                   DetectionMethod method,
+                                                                  int kernel_size,
                                                                   cv::Mat* debug_out = nullptr);
 
    private:
     // --- Preprocessing ---
     // Apply morphological close+open to remove noise and fill small holes
-    static cv::Mat cleanMask(const cv::Mat& mask);
+    static cv::Mat cleanMask(const cv::Mat& mask, int kernel_size);
     // Return a binary mask of the largest connected foreground component
     static std::optional<cv::Mat> largestComponent(const cv::Mat& mask);
     // --- Detection methods ---

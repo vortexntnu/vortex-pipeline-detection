@@ -14,6 +14,8 @@ DetectorNode::DetectorNode() : Node("pipeline_image_endpoints") {
     auto debug_topic = this->declare_parameter<std::string>("debug_topic");
     debug_ = this->declare_parameter<bool>("debug");
 
+    kernel_size_ = this->declare_parameter<int>("morph_kernel_size");
+
     // Detection method parameter
     auto method_str = this->declare_parameter<std::string>("detection_method");
     if (method_str == "furthest_points") {
@@ -54,8 +56,8 @@ void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         auto cv_ptr = cv_bridge::toCvShare(msg, "mono8");
 
         cv::Mat debug_vis;
-        auto endpoints = PipelineDetector::findPipelineEndpoints(cv_ptr->image, detection_method_,
-                                                                 debug_ ? &debug_vis : nullptr);
+        auto endpoints = PipelineDetector::findPipelineEndpoints(
+            cv_ptr->image, detection_method_, kernel_size_, debug_ ? &debug_vis : nullptr);
 
         if (!endpoints) {
             RCLCPP_WARN(this->get_logger(), "No endpoints detected");

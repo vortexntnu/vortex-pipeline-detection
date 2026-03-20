@@ -16,6 +16,7 @@ class DetectorNode : public rclcpp::Node {
 
     bool debug_;
     DetectionMethod detection_method_;
+    int kernel_size_;
 
     // Publishers and subscribers
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_sub_;

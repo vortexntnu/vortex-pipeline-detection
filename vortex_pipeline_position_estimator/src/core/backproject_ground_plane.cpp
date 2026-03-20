@@ -1,8 +1,5 @@
 #include "vortex_pipeline_position_estimator/backproject_ground_plane.hpp"
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <tf2/LinearMath/Quaternion.h>
 #include <cmath>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace vortex_pipeline_position_estimator {
 
@@ -10,7 +7,8 @@ cv::Point3d backprojectGroundPlane(int u,
                                    int v,
                                    double altitude,
                                    const CameraIntrinsics& intrinsics,
-                                   const geometry_msgs::msg::TransformStamped& camera_to_world,
+                                   const cv::Matx33d& rotation,
+                                   const cv::Vec3d& translation,
                                    bool apply_undistortion) {
     if (altitude <= 0.0 || std::isnan(altitude) || std::isinf(altitude)) {
         return cv::Point3d(0, 0, 0);
@@ -44,14 +42,11 @@ cv::Point3d backprojectGroundPlane(int u,
     ray_z_cam /= norm;
 
     // Rotate ray from CAMERA frame to WORLD frame
-    tf2::Quaternion quat;
-    tf2::fromMsg(camera_to_world.transform.rotation, quat);
-    tf2::Matrix3x3 rotation_matrix(quat);
-    tf2::Vector3 ray_world = rotation_matrix * tf2::Vector3(ray_x_cam, ray_y_cam, ray_z_cam);
+    cv::Vec3d ray_world = rotation * cv::Vec3d(ray_x_cam, ray_y_cam, ray_z_cam);
 
-    double ray_x_world = ray_world.getX();
-    double ray_y_world = ray_world.getY();
-    double ray_z_world = ray_world.getZ();
+    double ray_x_world = ray_world[0];
+    double ray_y_world = ray_world[1];
+    double ray_z_world = ray_world[2];
 
     // Intersect ray with ground plane in WORLD frame (NED: X=North, Y=East, Z=Down)
     // Ground plane at Z = cam_z + altitude. Solve: t * ray_z_world = altitude
@@ -60,9 +55,9 @@ cv::Point3d backprojectGroundPlane(int u,
 
     double t = altitude / ray_z_world;
 
-    double cam_x = camera_to_world.transform.translation.x;
-    double cam_y = camera_to_world.transform.translation.y;
-    double cam_z = camera_to_world.transform.translation.z;
+    double cam_x = translation[0];
+    double cam_y = translation[1];
+    double cam_z = translation[2];
 
     // Ray equation: P = camera_pos + t * ray_direction
     return cv::Point3d(cam_x + ray_x_world * t,  // North
