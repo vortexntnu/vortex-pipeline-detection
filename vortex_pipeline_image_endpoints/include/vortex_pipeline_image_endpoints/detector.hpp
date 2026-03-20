@@ -19,31 +19,31 @@ class PipelineDetector {
     // Find pipeline endpoints using the specified detection method
     // Returns struct with endpoint(s) if found
     // debug_out: optional debug visualization (nullptr = no debug)
-    static std::optional<PipelineEndpoints> findPipelineEndpoints(const cv::Mat& mask,
-                                                                  DetectionMethod method,
-                                                                  int kernel_size,
-                                                                  cv::Mat* debug_out = nullptr);
+    static std::optional<PipelineEndpoints> find_pipeline_endpoints(const cv::Mat& mask,
+                                                                     DetectionMethod method,
+                                                                     int kernel_size,
+                                                                     cv::Mat* debug_out = nullptr);
 
    private:
     // --- Preprocessing ---
     // Apply morphological close+open to remove noise and fill small holes
-    static cv::Mat cleanMask(const cv::Mat& mask, int kernel_size);
+    static cv::Mat clean_mask(const cv::Mat& mask, int kernel_size);
     // Return a binary mask of the largest connected foreground component
-    static std::optional<cv::Mat> largestComponent(const cv::Mat& mask);
+    static std::optional<cv::Mat> largest_component(const cv::Mat& mask);
     // --- Detection methods ---
     // Find two points furthest apart using convex hull
-    static std::optional<std::pair<cv::Point, cv::Point>> findFurthestPoints(
+    static std::optional<std::pair<cv::Point, cv::Point>> find_furthest_points(
         const cv::Mat& binary);
     // Find the centroid of the lowest (highest y-index) foreground row
-    static std::optional<cv::Point> findLowestPixel(const cv::Mat& binary);
+    static std::optional<cv::Point> find_lowest_pixel(const cv::Mat& binary);
     // Find the centroid of the highest (lowest y-index) foreground row
-    static std::optional<cv::Point> findHighestPixel(const cv::Mat& binary);
+    static std::optional<cv::Point> find_highest_pixel(const cv::Mat& binary);
 
     // --- Debug ---
     // Draw detected endpoints onto debug_out, initialised from pipe_mask
-    static void drawEndpoints(cv::Mat& debug_out,
-                              const cv::Mat& pipe_mask,
-                              const PipelineEndpoints& endpoints);
+    static void draw_endpoints(cv::Mat& debug_out,
+                               const cv::Mat& pipe_mask,
+                               const PipelineEndpoints& endpoints);
 };
 
 }  // namespace vortex_pipeline_image_endpoints

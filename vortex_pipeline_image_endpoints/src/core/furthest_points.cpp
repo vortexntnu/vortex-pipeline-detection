@@ -2,7 +2,7 @@
 
 namespace vortex_pipeline_image_endpoints {
 
-std::optional<std::pair<cv::Point, cv::Point>> PipelineDetector::findFurthestPoints(
+std::optional<std::pair<cv::Point, cv::Point>> PipelineDetector::find_furthest_points(
     const cv::Mat& binary) {
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(binary.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);

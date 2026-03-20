@@ -12,7 +12,7 @@ class DetectorNode : public rclcpp::Node {
     DetectorNode();
 
    private:
-    void maskCallback(const sensor_msgs::msg::Image::SharedPtr msg);
+    void mask_callback(const sensor_msgs::msg::Image::SharedPtr msg);
 
     bool debug_;
     DetectionMethod detection_method_;

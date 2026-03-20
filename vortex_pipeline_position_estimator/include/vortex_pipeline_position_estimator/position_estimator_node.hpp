@@ -26,17 +26,19 @@ class PositionEstimatorNode : public rclcpp::Node {
 
    private:
     // Callbacks
-    void endpointsCallback(const vortex_msgs::msg::Point2DArray::SharedPtr msg);
-    void cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
-    void dvlCallback(const std_msgs::msg::Float64::SharedPtr msg);
+    void endpoints_callback(const vortex_msgs::msg::Point2DArray::SharedPtr msg);
+    void camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
+    void dvl_callback(const std_msgs::msg::Float64::SharedPtr msg);
 
     // Helper methods
-    std::optional<geometry_msgs::msg::TransformStamped> lookupCameraToWorld(
+    std::optional<geometry_msgs::msg::TransformStamped> lookup_camera_to_world(
         const std::string& frame_id,
         const rclcpp::Time& stamp);
-    vortex_msgs::msg::LandmarkArray buildLandmarkMsg(const rclcpp::Time& stamp,
+    vortex_msgs::msg::LandmarkArray build_landmark_msg(
+        const rclcpp::Time& stamp,
                                                      const cv::Point3d& selected_3d,
                                                      const std::vector<cv::Point3d>& endpoints_3d);
+
     // ROS interfaces
     rclcpp::Subscription<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr caminfo_sub_;

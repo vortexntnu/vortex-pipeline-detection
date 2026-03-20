@@ -2,7 +2,7 @@
 
 namespace vortex_pipeline_image_endpoints {
 
-cv::Mat PipelineDetector::cleanMask(const cv::Mat& mask, int kernel_size) {
+cv::Mat PipelineDetector::clean_mask(const cv::Mat& mask, int kernel_size) {
     cv::Mat result;
     cv::Mat kernel =
         cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernel_size, kernel_size));
@@ -11,7 +11,7 @@ cv::Mat PipelineDetector::cleanMask(const cv::Mat& mask, int kernel_size) {
     return result;
 }
 
-std::optional<cv::Mat> PipelineDetector::largestComponent(const cv::Mat& mask) {
+std::optional<cv::Mat> PipelineDetector::largest_component(const cv::Mat& mask) {
     cv::Mat labels, stats, centroids;
     int numComponents = cv::connectedComponentsWithStats(mask, labels, stats, centroids);
 

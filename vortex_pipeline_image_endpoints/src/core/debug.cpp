@@ -2,9 +2,9 @@
 
 namespace vortex_pipeline_image_endpoints {
 
-void PipelineDetector::drawEndpoints(cv::Mat& debug_out,
-                                     const cv::Mat& pipe_mask,
-                                     const PipelineEndpoints& endpoints) {
+void PipelineDetector::draw_endpoints(cv::Mat& debug_out,
+                                      const cv::Mat& pipe_mask,
+                                      const PipelineEndpoints& endpoints) {
     cv::cvtColor(pipe_mask, debug_out, cv::COLOR_GRAY2BGR);
 
     if (endpoints.endpoint2.has_value()) {

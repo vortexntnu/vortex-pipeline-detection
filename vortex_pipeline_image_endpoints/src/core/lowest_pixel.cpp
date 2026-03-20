@@ -6,7 +6,7 @@
 
 namespace vortex_pipeline_image_endpoints {
 
-std::optional<cv::Point> PipelineDetector::findLowestPixel(const cv::Mat& binary) {
+std::optional<cv::Point> PipelineDetector::find_lowest_pixel(const cv::Mat& binary) {
     for (int row = binary.rows - 1; row >= 0; --row) {
         std::vector<int> cols;
         const uchar* ptr = binary.ptr<uchar>(row);
@@ -22,7 +22,7 @@ std::optional<cv::Point> PipelineDetector::findLowestPixel(const cv::Mat& binary
     return std::nullopt;
 }
 
-std::optional<cv::Point> PipelineDetector::findHighestPixel(const cv::Mat& binary) {
+std::optional<cv::Point> PipelineDetector::find_highest_pixel(const cv::Mat& binary) {
     for (int row = 0; row < binary.rows; ++row) {
         std::vector<int> cols;
         const uchar* ptr = binary.ptr<uchar>(row);

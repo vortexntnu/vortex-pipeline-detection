@@ -9,12 +9,11 @@ DetectorNode::DetectorNode() : Node("pipeline_image_endpoints") {
     auto qos = rclcpp::QoS(1).best_effort();
 
     // Parameters
+    kernel_size_ = this->declare_parameter<int>("morph_kernel_size");
     auto input_topic = this->declare_parameter<std::string>("input_topic");
     auto output_topic = this->declare_parameter<std::string>("output_topic");
     auto debug_topic = this->declare_parameter<std::string>("debug_topic");
     debug_ = this->declare_parameter<bool>("debug");
-
-    kernel_size_ = this->declare_parameter<int>("morph_kernel_size");
 
     // Detection method parameter
     auto method_str = this->declare_parameter<std::string>("detection_method");
@@ -30,7 +29,7 @@ DetectorNode::DetectorNode() : Node("pipeline_image_endpoints") {
 
     // Subscriptions
     mask_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        input_topic, qos, std::bind(&DetectorNode::maskCallback, this, std::placeholders::_1));
+        input_topic, qos, std::bind(&DetectorNode::mask_callback, this, std::placeholders::_1));
 
     // Publishers
     endpoints_pub_ = this->create_publisher<vortex_msgs::msg::Point2DArray>(output_topic, qos);
@@ -49,14 +48,14 @@ DetectorNode::DetectorNode() : Node("pipeline_image_endpoints") {
     }
 }
 
-void DetectorNode::maskCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
+void DetectorNode::mask_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
     RCLCPP_DEBUG(this->get_logger(), "Received mask image: %dx%d", msg->width, msg->height);
 
     try {
         auto cv_ptr = cv_bridge::toCvShare(msg, "mono8");
 
         cv::Mat debug_vis;
-        auto endpoints = PipelineDetector::findPipelineEndpoints(
+        auto endpoints = PipelineDetector::find_pipeline_endpoints(
             cv_ptr->image, detection_method_, kernel_size_, debug_ ? &debug_vis : nullptr);
 
         if (!endpoints) {
