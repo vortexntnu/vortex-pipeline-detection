@@ -9,7 +9,7 @@ def generate_launch_description():
             name='irls_line_node',
             parameters=[
                 # Topics
-                {'input_topic': '/filtered_image'},
+                {'input_topic': '/pipeline/camera/segmentation_mask'},
                 {'output_topic': '/irls_line/image'},
 
                 # Preprocessing

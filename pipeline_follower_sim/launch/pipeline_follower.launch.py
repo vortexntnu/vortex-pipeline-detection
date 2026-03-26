@@ -12,10 +12,6 @@ def generate_launch_description():
                 {'input_topic': '/filtered_image'},
                 {'output_topic': '/irls_line/image'},
 
-                # Preprocessing
-                {'binary_threshold': 200},
-                {'min_pixels': 200},
-
             ],
         )
     ])

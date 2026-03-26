@@ -20,6 +20,7 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 
 #include <fstream>
 #include <algorithm>
@@ -35,6 +36,20 @@ inline std::pair<double, double> rotateXY(double x, double y, double yaw)
     return {xr, yr};
 }
 
+
+void sortByClosestX(vortex_msgs::msg::LineSegment2D & line1,
+                    vortex_msgs::msg::LineSegment2D & line2)
+{
+    double targetX = line1.p0.x;
+
+    double d0 = std::abs(line2.p0.x - targetX);
+    double d1 = std::abs(line2.p1.x - targetX);
+
+    // If p1 is closer than p0 → swap
+    if (d1 < d0) {
+        std::swap(line2.p0, line2.p1);
+    }
+}
 
 static geometry_msgs::msg::Quaternion quatFromYaw(double yaw_rad)
 {
@@ -54,17 +69,10 @@ double normalizeAngle(double angle) {
 
 double lineOrientation(const cv::Point2f& p1, const cv::Point2f& p2)
 {
-    cv::Point2f a = p1;
-    cv::Point2f b = p2;
+    double dx = p2.x - p1.x;
+    double dy = p1.y - p2.y;
 
-    // force line to point upward (forward)
-    if (b.y > a.y)
-        std::swap(a,b);
-
-    double dx = b.x - a.x;
-    double dy = b.y - a.y;
-
-    return std::atan2(dx, -dy);
+    return std::atan2(-dy, dx);
 }
 
 double angleBetweenLinesRad(
@@ -81,9 +89,11 @@ double angleBetweenLinesRad(
 
     double angle = normalizeAngle(theta2 - theta1);
 
-    if(single)
-      if (p1.x > p2.x){angle = -abs(angle);}
-      else {angle = abs(angle);}
+    if(single){
+      double dx = p2.x - p1.x;
+      double dy = p1.y - p2.y;
+      angle = std::atan2(dx, dy);
+    } 
     
     double newYaw = yaw + angle;
 
@@ -136,6 +146,8 @@ void sortLines(
   ensureHighestYFirst(lines[0]);
   ensureHighestYFirst(lines[1]);
 
+  sortByClosestX(lines[0],lines[1]);
+
   // Ensure the line with the highest Y overall is first
 //   if (maxY(lines[1]) > maxY(lines[0])) {
 //     std::swap(lines[0], lines[1]);
@@ -178,10 +190,11 @@ public:
   {
     // Parameters
     input_topic_lines_ = this->declare_parameter<std::string>("input_topic_lines", "irls_line/lines");
+    input_topic_info_ = this->declare_parameter<std::string>("input_topic_info", "/pipeline/camera/camera_info");
     input_topic_pose_ = this->declare_parameter<std::string>("input_topic_pose", "/orca/odom");
     input_topic_altitude_ = this->declare_parameter<std::string>("input_topic_altitude", "/dvl/altitude");
     camera_height_ = this->declare_parameter<double>("camera_height", 0.5);
-    send_rate_hz_ = this->declare_parameter<double>("send_rate_hz", 0.7);
+    send_rate_hz_ = this->declare_parameter<double>("send_rate_hz", 0.90);
     camera_placment_x_ = this->declare_parameter<double>("camera_placment_x", 0.4);
 
     debug_waypoint_topic_ = this->declare_parameter<std::string>("debug_waypoint_topic", "/debug/waypoint");
@@ -192,10 +205,6 @@ public:
 
 
     // Example camera intrinsics (update for your camera)
-    double fx = 900, fy = 900, cx = 720, cy = 540;
-    K_ = cv::Matx33d(fx, 0, cx,
-                     0, fy, cy,
-                     0, 0, 1);
 
     sub_line = this->create_subscription<vortex_msgs::msg::LineSegment2DArray>(
       input_topic_lines_,
@@ -213,6 +222,12 @@ public:
       input_topic_altitude_,
       rclcpp::SensorDataQoS(),
       std::bind(&PipelineFollowerNode::altitudeCb, this, std::placeholders::_1)
+    );
+
+    sub_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+      input_topic_info_,
+      rclcpp::SensorDataQoS(),
+      std::bind(&PipelineFollowerNode::infoCb, this, std::placeholders::_1)
     );
 
     client_ = this->create_client<vortex_msgs::srv::SendWaypoints>("/orca/waypoint_addition");
@@ -266,7 +281,19 @@ private:
     robot_a_ = msg->data;
   }
 
+  void infoCb(const sensor_msgs::msg::CameraInfo::SharedPtr msg)
+  {
+    K_ = cv::Matx33d(
+        msg->k[0], msg->k[1], msg->k[2],
+        msg->k[3], msg->k[4], msg->k[5],
+        msg->k[6], msg->k[7], msg->k[8]
+    );
 
+    image_width = msg->width;
+    image_height = msg->height;
+  }
+  
+  
   void timerTick()
   {
 
@@ -316,11 +343,30 @@ private:
       const double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
 
       if (dist < MIN_WP_DIST) {
-        RCLCPP_DEBUG_THROTTLE(
-          get_logger(), *get_clock(), 2000,
-          "Waypoint skipped (distance %.3f m < %.2f m)",
-          dist, MIN_WP_DIST);
-        return;
+        min_dist_skip_count_++;
+
+        if (min_dist_skip_count_ < MAX_MIN_DIST_SKIPS) {
+          RCLCPP_DEBUG_THROTTLE(
+            get_logger(), *get_clock(), 2000,
+            "Waypoint skipped (distance %.3f m < %.2f m) (%d/%d)",
+            dist, MIN_WP_DIST,
+            min_dist_skip_count_,
+            MAX_MIN_DIST_SKIPS);
+
+          return;
+        }
+
+        // Force send after too many skips
+        RCLCPP_WARN(
+          get_logger(),
+          "Waypoint forced after %d consecutive min-dist skips (%.3f m)",
+          min_dist_skip_count_,
+          dist);
+
+        min_dist_skip_count_ = 0;
+      } else {
+        // Reset counter if waypoint is valid
+        min_dist_skip_count_ = 0;
       }
     }
 
@@ -377,7 +423,8 @@ private:
         }
       }
     );
-  }
+  };
+
   struct WaypointRequest
   {
     vortex_msgs::msg::Waypoint wp;
@@ -487,11 +534,16 @@ private:
 
     double x_in_meters = robot_x_ + dx + xc;
     double y_in_meters = robot_y_ + dy + yc;
-    
-    if (abs(p1.x- p2.x) >= 100)
+  
+    if (abs(p1.x- p2.x) >= image_width/7)
     {
-      double newYaw = angleBetweenLinesRad(robot_yaw_, p1,p2,cv::Point2d(1080,0),cv::Point2d(1080,1440), true);
-      sendOrDebugWaypoint(robot_x_, robot_y_, new_robot_z, newYaw, true, false, vortex_msgs::msg::Waypoint::ONLY_ORIENTATION, 0.3);
+      double newYaw = angleBetweenLinesRad(robot_yaw_, p1,p2, cv::Point2f(0, 0),cv::Point2f(1, 1), true);
+
+      if (abs(abs(robot_yaw_) - abs(newYaw)) > 1.35){
+        sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_, true, false, vortex_msgs::msg::Waypoint::FORWARD_HEADING, 0.3);
+        return;
+      }
+      sendOrDebugWaypoint(robot_x_, robot_y_, new_robot_z, newYaw, true, true, vortex_msgs::msg::Waypoint::ONLY_ORIENTATION, 0.3);
     }
     else
     {
@@ -527,7 +579,7 @@ private:
         avg_dist += cv::norm(cross_history_[i] - cross_history_[i + 1]);
       avg_dist /= 2.0;
 
-      if (avg_dist < 100.0 & cross.y < 480 )  // pixels threshold for "close proximity"
+      if (avg_dist < 80.0 & cross.y < 300 )  // pixels threshold for "close proximity"
       {
         double dist;
         auto point_opt = groundDistanceFromPixel(cv::Point2d(cross.x, cross.y), K_, robot_a_);
@@ -685,16 +737,21 @@ private:
 
   rclcpp::Publisher<vortex_msgs::msg::Waypoint>::SharedPtr debug_wp_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr service_off_pub_;
+  rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info;
 
 
   double robot_x_{0.0}, robot_y_{0.0}, robot_z_{0.0}, robot_yaw_{0.0};
   std::string input_topic_lines_;
   std::string input_topic_pose_;
+  std::string input_topic_info_;
+
   double camera_height_;
   double send_rate_hz_;
   double camera_placment_x_;
   cv::Matx33d K_;
   double robot_a_{0.0};
+  double image_width;
+  double image_height;
 
   bool have_last_corner_{false};
   double last_corner_x_{0.0};
@@ -716,6 +773,9 @@ private:
   double prev_x_ = 0.0;
   double prev_y_ = 0.0;
   double prev_z_ = 0.0;
+
+  int min_dist_skip_count_ = 0;
+  static constexpr int MAX_MIN_DIST_SKIPS = 8;
 
   rclcpp::TimerBase::SharedPtr request_delay_timer_;
 

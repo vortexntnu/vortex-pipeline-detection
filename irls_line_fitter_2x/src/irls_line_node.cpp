@@ -279,7 +279,8 @@ class IRLSLineNode : public rclcpp::Node {
 public:
   IRLSLineNode() : Node("irls_line_node") {
     // Topics
-    input_topic_        = declare_parameter<std::string>("input_topic", "/filtered_image");
+    input_topic_        = declare_parameter<std::string>("input_topic", "/pipeline/camera/segmentation_mask");
+    input_topic_info_   = declare_parameter<std::string>("input_topic_info", "/pipeline/camera/camera_info");
     output_topic_img_   = declare_parameter<std::string>("output_topic_img", "/irls_line/image");
     output_topic_lines_ = declare_parameter<std::string>("output_topic_lines", "/irls_line/lines");
 
@@ -523,7 +524,10 @@ private:
   std::string input_topic_{"/filtered_image"};
   std::string output_topic_img_{"/irls_line/image"};
   std::string output_topic_lines_{"/irls_line/lines"};
+  std::string input_topic_info_{"/pipeline/camera/camera_info"};
 
+
+  
   // Preprocessing
   int binary_threshold_{200}, min_pixels_{200};
 
