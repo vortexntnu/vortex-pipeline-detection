@@ -1,0 +1,27 @@
+goal_pos: [2.1, -13.3, 6.5] 
+goal_ori: [0.0, 0.0, -0.7, 0.7] # x, y, z, w  (quat)
+
+return_pos: [1.6, -0.1, 4.7] 
+return_ori: [0.0, 0.0, -0.7, 0.7] # x, y, z, w  (quat)
+
+pos_tol_goal: 1.0 #m
+ori_tol_goal: 3.14  #rad
+
+pos_tol_home: 0.3 #m
+ori_tol_home: 1.0 #rad
+
+timeout: 900 #sec
+
+random_start:
+  enabled: true
+  randomize_pos: false
+  pos_range: 0.5    # meters, uniform offset in [-range, +range] per axis
+  randomize_ori: true
+  ori_range: 0.4    # radians, applied as yaw offset
+
+#you can add as many bags with topics as you want
+bags:
+  - name: waypoints_bag_
+    topic: /debug/waypoint
+  - name: irls_bag_
+    topic: /irls_line/image

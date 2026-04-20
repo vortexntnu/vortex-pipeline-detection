@@ -15,13 +15,19 @@ find_package(vortex_msgs REQUIRED)
 
 add_executable(irls_line_node src/irls_line_node.cpp)
 ament_target_dependencies(irls_line_node rclcpp sensor_msgs cv_bridge vortex_msgs)
-target_include_directories(irls_line_node PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_include_directories(irls_line_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(irls_line_node ${OpenCV_LIBS})
 
 install(TARGETS irls_line_node
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch
+install(DIRECTORY include/
+  DESTINATION include)
+
+install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME})
 
 ament_package()

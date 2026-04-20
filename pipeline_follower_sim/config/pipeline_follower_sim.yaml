@@ -1,0 +1,11 @@
+pipeline_follower_node:
+  ros__parameters:
+    input_topic_lines: "irls_line/lines"
+    input_topic_info: "/pipeline/camera/camera_info"
+    input_topic_pose: "/orca/odom"
+    input_topic_altitude: "/orca/dvl/altitude"
+    camera_height: 0.5
+    send_rate_hz: 0.90
+    camera_placment_x: 0.4
+    debug_waypoint_topic: "/debug/waypoint"
+    debug_service_off_topic: "/debug/send_waypoints_service_off"

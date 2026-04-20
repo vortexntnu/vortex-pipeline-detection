@@ -1,0 +1,40 @@
+irls_line_node:
+  ros__parameters:
+    # Topics
+    input_topic: /pipeline/camera/segmentation_mask
+    input_topic_info: /pipeline/camera/camera_info
+    output_topic_img: /irls_line/image
+    output_topic_lines: /irls_line/lines
+
+    # Preprocessing
+    binary_threshold: 200
+    min_pixels: 250
+
+    # IRLS
+    max_irls_iters: 13
+    eps_change: 1.0e-4
+    loss: tukey          # "huber" or "tukey"
+    huber_delta: 0.3
+    tukey_c: 2.835
+    scale_with_mad: true
+
+    # Drawing (first line — red)
+    draw_thickness: 3
+    draw_b: 0
+    draw_g: 0
+    draw_r: 255
+    publish_original_if_fail: true
+
+    # Clipping
+    clip_to_object: true
+    clip_max_dist_px: 6.0
+
+    # Second-pass / intersection
+    find_second_line: true
+    removal_band_px: 120.0
+    min_pixels_second: 250
+    draw2_b: 0
+    draw2_g: 255
+    draw2_r: 0
+    draw_intersection: true
+    intersection_radius: 10
