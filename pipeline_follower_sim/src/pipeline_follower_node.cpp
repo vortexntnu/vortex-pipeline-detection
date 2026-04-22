@@ -10,13 +10,16 @@
 PipelineFollowerNode::PipelineFollowerNode()
 : Node("pipeline_follower_node")
 {
-  input_topic_lines_    = this->declare_parameter<std::string>("input_topic_lines", "irls_line/lines");
-  input_topic_info_     = this->declare_parameter<std::string>("input_topic_info", "/pipeline/camera/camera_info");
-  input_topic_pose_     = this->declare_parameter<std::string>("input_topic_pose", "/orca/odom");
-  input_topic_altitude_ = this->declare_parameter<std::string>("input_topic_altitude", "/orca/dvl/altitude");
-  camera_height_        = this->declare_parameter<double>("camera_height", 0.5);
-  send_rate_hz_         = this->declare_parameter<double>("send_rate_hz", 0.90);
-  camera_placment_x_    = this->declare_parameter<double>("camera_placment_x", 0.4);
+  input_topic_lines_    = this->declare_parameter<std::string>("input_topic_lines");
+  input_topic_info_     = this->declare_parameter<std::string>("input_topic_info");
+  input_topic_pose_     = this->declare_parameter<std::string>("input_topic_pose");
+  input_topic_altitude_ = this->declare_parameter<std::string>("input_topic_altitude");
+  camera_height_        = this->declare_parameter<double>("camera_height");
+  send_rate_hz_         = this->declare_parameter<double>("send_rate_hz");
+  camera_placment_x_    = this->declare_parameter<double>("camera_placment_x");
+  camera_placment_y_    = this->declare_parameter<double>("camera_placment_y");
+  camera_placment_z_    = this->declare_parameter<double>("camera_placment_z");
+  target_height_       = this->declare_parameter<double>("target_height");
 
   debug_waypoint_topic_     = this->declare_parameter<std::string>("debug_waypoint_topic", "/debug/waypoint");
   debug_service_off_topic_  = this->declare_parameter<std::string>("debug_service_off_topic", "/debug/send_waypoints_service_off");
@@ -48,7 +51,7 @@ PipelineFollowerNode::PipelineFollowerNode()
     std::bind(&PipelineFollowerNode::infoCb, this, std::placeholders::_1)
   );
 
-  client_ = this->create_client<vortex_msgs::srv::SendWaypoints>("/orca/waypoint_addition");
+  client_ = this->create_client<vortex_msgs::srv::SendWaypoints>("/nautilus/waypoint_addition");
 
   goal_service_ = this->create_service<std_srvs::srv::Trigger>(
     "pipline/goal_service",
@@ -144,7 +147,7 @@ void PipelineFollowerNode::sendOrDebugWaypoint(
   bool overwrite_prior, bool take_priority,
   uint mode, double switching_threshold)
 {
-  constexpr double MIN_WP_DIST = 0.15;
+  constexpr double MIN_WP_DIST = 0.20;
 
   if (have_prev_wp_) {
     const double dx   = x - prev_x_;
@@ -174,7 +177,7 @@ void PipelineFollowerNode::sendOrDebugWaypoint(
   wp.pose.position.y  = y;
   wp.pose.position.z  = z;
   wp.pose.orientation = quatFromYaw(yaw);
-  wp.mode             = mode;
+  wp.waypoint_mode.mode = mode;
 
   if (!client_->service_is_ready()) {
     debug_wp_pub_->publish(wp);
@@ -272,8 +275,8 @@ void PipelineFollowerNode::handleSingleLine(const vortex_msgs::msg::LineSegment2
   double forward = ground.y;
 
   auto [dx, dy] = rotateXY(forward, right, robot_yaw_);
-  auto [xc, yc] = rotateXY(camera_placment_x_, 0, robot_yaw_);
-  auto new_robot_z = hight_regulator(robot_a_, robot_z_);
+  auto [xc, yc] = rotateXY(camera_placment_x_, camera_placment_y_, robot_yaw_);
+  auto new_robot_z = hight_regulator(robot_a_, robot_z_, target_height_);
 
   double x_in_meters = robot_x_ + dx + xc;
   double y_in_meters = robot_y_ + dy + yc;
@@ -282,14 +285,14 @@ void PipelineFollowerNode::handleSingleLine(const vortex_msgs::msg::LineSegment2
     double newYaw = angleBetweenLinesRad(robot_yaw_, p1, p2, cv::Point2f(0, 0), cv::Point2f(1, 1), true);
     if (abs(abs(robot_yaw_) - abs(newYaw)) > 1.35) {
       sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_,
-        true, false, vortex_msgs::msg::Waypoint::FORWARD_HEADING, 0.3);
+        true, false, vortex_msgs::msg::WaypointMode::FORWARD_HEADING, 0.3);
       return;
     }
     sendOrDebugWaypoint(robot_x_, robot_y_, new_robot_z, newYaw,
-      true, false, vortex_msgs::msg::Waypoint::ONLY_ORIENTATION, 0.3);
+      true, false, vortex_msgs::msg::WaypointMode::ONLY_ORIENTATION, 0.3);
   } else {
     sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_,
-      true, false, vortex_msgs::msg::Waypoint::FORWARD_HEADING, 0.3);
+      true, false, vortex_msgs::msg::WaypointMode::FORWARD_HEADING, 0.3);
   }
 }
 
@@ -329,7 +332,7 @@ void PipelineFollowerNode::handleTwoLines(
       double forward = ground.y;
 
       auto [dx, dy] = rotateXY(forward, right, robot_yaw_);
-      auto [xc, yc] = rotateXY(camera_placment_x_, 0, robot_yaw_);
+      auto [xc, yc] = rotateXY(camera_placment_x_, camera_placment_y_, robot_yaw_);
 
       double x_in_meters = robot_x_ + dx + xc;
       double y_in_meters = robot_y_ + dy + yc;
@@ -343,7 +346,7 @@ void PipelineFollowerNode::handleTwoLines(
       last_corner_x_  = x_in_meters;
       last_corner_y_  = y_in_meters;
       have_last_corner_ = true;
-      auto new_robot_z = hight_regulator(robot_a_, robot_z_);
+      auto new_robot_z = hight_regulator(robot_a_, robot_z_, target_height_);
 
       double angle_rad = angleBetweenLinesRad(robot_yaw_, p1, p2, q1, q2);
       double yaw_rad   = angle_rad;
@@ -353,14 +356,14 @@ void PipelineFollowerNode::handleTwoLines(
       wp1.pose.position.y  = y_in_meters;
       wp1.pose.position.z  = new_robot_z;
       wp1.pose.orientation = quatFromYaw(robot_yaw_);
-      wp1.mode             = vortex_msgs::msg::Waypoint::FULL_POSE;
+      wp1.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FULL_POSE;
 
       vortex_msgs::msg::Waypoint wp2;
       wp2.pose.position.x  = x_in_meters;
       wp2.pose.position.y  = y_in_meters;
       wp2.pose.position.z  = new_robot_z;
       wp2.pose.orientation = quatFromYaw(yaw_rad);
-      wp2.mode             = vortex_msgs::msg::Waypoint::FULL_POSE;
+      wp2.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FULL_POSE;
 
       double xf = x_in_meters + 0.5 * std::cos(yaw_rad);
       double yf = y_in_meters + 0.5 * std::sin(yaw_rad);
@@ -370,7 +373,7 @@ void PipelineFollowerNode::handleTwoLines(
       wp3.pose.position.y  = yf;
       wp3.pose.position.z  = new_robot_z;
       wp3.pose.orientation = quatFromYaw(yaw_rad);
-      wp3.mode             = vortex_msgs::msg::Waypoint::FULL_POSE;
+      wp3.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FULL_POSE;
 
       enqueueWaypoint(wp1, true,  true, 0.1);
       enqueueWaypoint(wp2, false, true, 0.1);

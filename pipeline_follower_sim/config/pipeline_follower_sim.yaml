@@ -2,10 +2,15 @@ pipeline_follower_node:
   ros__parameters:
     input_topic_lines: "irls_line/lines"
     input_topic_info: "/pipeline/camera/camera_info"
-    input_topic_pose: "/orca/odom"
-    input_topic_altitude: "/orca/dvl/altitude"
+    input_topic_pose: "/nautilus/odom"
+    input_topic_altitude: "/nautilus/dvl/altitude"
     camera_height: 0.5
-    send_rate_hz: 0.90
+    send_rate_hz: 3.0
     camera_placment_x: 0.4
+    camera_placment_y: -0.158
+    camera_placment_z: 0.161
     debug_waypoint_topic: "/debug/waypoint"
     debug_service_off_topic: "/debug/send_waypoints_service_off"
+    target_height: 0.9
+    receive_frame: "nautilus/downwards_camera_optical" #implement tf2 :D
+    target_frame: "nautilus/odom"

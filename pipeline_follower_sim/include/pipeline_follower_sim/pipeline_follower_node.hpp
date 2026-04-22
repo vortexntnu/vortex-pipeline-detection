@@ -5,6 +5,7 @@
 #include <vortex_msgs/msg/waypoint.hpp>
 #include <vortex_msgs/srv/send_waypoints.hpp>
 #include <vortex_msgs/msg/dvl_altitude.hpp>
+#include <vortex_msgs/msg/waypoint_mode.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
@@ -77,10 +78,13 @@ private:
   double camera_height_;
   double send_rate_hz_;
   double camera_placment_x_;
+  double camera_placment_y_;
+  double camera_placment_z_;
   cv::Matx33d K_;
   double robot_a_{0.0};
   double image_width;
   double image_height;
+  double target_height_;
 
   bool have_last_corner_{false};
   double last_corner_x_{0.0};
@@ -103,7 +107,7 @@ private:
   bool goal_blocked_ = false;
 
   int min_dist_skip_count_ = 0;
-  static constexpr int MAX_MIN_DIST_SKIPS = 4;
+  static constexpr int MAX_MIN_DIST_SKIPS = 20;
 
   rclcpp::TimerBase::SharedPtr request_delay_timer_;
   rclcpp::Subscription<vortex_msgs::msg::LineSegment2DArray>::SharedPtr sub_line;

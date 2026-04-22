@@ -87,7 +87,7 @@ inline double angleBetweenLinesRad(
     return normalizeAngle(yaw + angle);
 }
 
-inline double hight_regulator(double z_hight, double dvl_hight, double target_hight = 0.7)
+inline double hight_regulator(double z_hight, double dvl_hight, double target_hight)
 {
     return z_hight - (target_hight - dvl_hight);
 }
